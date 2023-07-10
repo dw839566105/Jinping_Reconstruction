@@ -1,0 +1,151 @@
+evtmax:=5000
+#energy:=2
+Radius:=0.65
+duplicate:=$(shell seq -w 1 30)
+order1 = $(shell seq -w 5 5 30)
+o1 = $(shell seq -w 5 5 30)
+o2 = $(shell seq -w 5 5 30)
+scan:=$(shell seq -$(Radius) 0.01 $(Radius))
+scan1:= $(shell seq 0.01 0.01 0.55) $(shell seq 0.55 0.002 0.644)
+path:=/mnt/stage/douwei/JP_1t_paper_bak
+geo:=DetectorStructure/1t_120
+
+.PHONY: all
+all: coeff
+
+targets:=shell point/x point/y point/z
+coef:=PE Time
+
+# Legendre fit
+# $(1) is the radius
+# $(2) is the order
+
+Lo_PE :=
+Lo_Time :=
+define Legendre_rule
+coeff/Legendre/PE/$(energy)/$(1)/$(2).h5: $(path)/concat/shell/$(energy)/$(1).h5
+	mkdir -p $$(dir $$@)
+	python3 calib/main_sLG.py -f $$< --order $(2) -o $$@ > $$@.log
+
+coeff/Legendre/Time/$(energy)/$(1)/$(2).h5: $(path)/concat/shell/$(energy)/$(1).h5
+	mkdir -p $$(dir $$@)
+	python3 calib/main_sLG.py -f $$< --order $(2) --mode time -o $$@ > $$@.log
+
+Lo_PE += coeff/Legendre/PE/$(energy)/$(1)/$(2).h5
+Lo_Time += coeff/Legendre/Time/$(energy)/$(1)/$(2).h5
+endef
+
+define fn
+$(foreach o, $(order1), $(eval $(call Legendre_rule,$(1),$(o))))
+endef
+
+$(foreach ra, $(scan1), $(eval $(call fn,$(ra))))
+Ld: $(Lo_PE) $(Lo_Time)
+
+coeff/Legendre/Gather/PE/$(energy)/$(go)/%.h5: $(Lo_PE)
+	mkdir -p $(dir $@)
+	python3 calib/Gather.py -p coeff/Legendre/PE/$(energy)/ -o $@ --o1 $* --o2 $(go)
+
+coeff/Legendre/Gather/Time/$(energy)/$(go)/%.h5: $(Lo_Time)
+	mkdir -p $(dir $@)
+	python3 calib/Gather.py -p coeff/Legendre/Time/$(energy)/ -o $@ --o1 $* --o2 $(go)
+
+# double Legendre fit
+# $(1) is the 1st order
+# $(2) is the 2nd order
+
+dLo_PE:=
+dLo_Time:=
+define dLegendre_rule
+coeff/dLegendre/PE/$(energy)/$(1)/$(2).h5: ball
+	mkdir -p $$(dir $$@)
+	python3 calib/main_dLG.py -f $(path)/concat/ball/$(energy)/ --order $(1) $(2) -o $$@ > $$@.log
+
+coeff/dLegendre/Time/$(energy)/$(1)/$(2).h5: ball
+	mkdir -p $$(dir $$@)
+	python3 calib/main_dLG.py -f $(path)/concat/ball/$(energy)/ --order $(1) $(2) --mode time -o $$@ > $$@.log
+dLo_PE += coeff/dLegendre/PE/$(energy)/$(1)/$(2).h5
+dLo_Time += coeff/dLegendre/Time/$(energy)/$(1)/$(2).h5
+endef
+
+define dfn
+$(foreach o, $(o1), $(eval $(call dLegendre_rule,$(o),$(1))))
+endef
+
+$(foreach o, $(o1), $(eval $(call dfn,$(o))))
+dLd: $(dLo_PE) $(dLo_Time)
+
+recon: $(foreach t, $(targets), $(scan1:%=$(path)/recon/$(t)/$(energy)/%.h5))
+ball: $(duplicate:%=$(path)/concat/ball/$(energy)/%.h5)
+coeff: $(order1:%=$(path)/coeff/Zernike/PE/$(energy)/%.h5) $(order1:%=$(path)/coeff/Zernike/Time/$(energy)/%.h5)
+coeff_Ld: $(order1:%=coeff/Legendre/Gather/PE/$(energy)/$(go)/%.h5) $(order1:%=coeff/Legendre/Gather/Time/$(energy)/$(go)/%.h5)
+track: $(path)/track/shell/0.26.h5
+validate: $(order1:%=coeff/Zernike/PE/$(energy)/%.csv) 
+validate1: $(order1:%=coeff/Legendre/Gather/PE/$(energy)/$(go)/%.csv) 
+validate2: $(dLo_PE:%.h5=%.csv)
+
+#############################################################
+################# generate macro files ######################
+#############################################################
+
+$(path)/mac/ball/$(energy)/%.mac: macro/example_ball.mac
+	mkdir -p $(dir $@)
+	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@Radius/$(Radius)/' $^ > $@
+
+$(path)/mac/shell/$(energy)/%.mac: macro/example_shell.mac
+	mkdir -p $(dir $@)
+	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@inner/$*/; s/@outer/$*/' $^ > $@
+
+$(path)/mac/point/x/$(energy)/%.mac: macro/example_point.mac
+	mkdir -p $(dir $@)
+	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@x @y @z/$* 0 0/;' $^ > $@
+
+$(path)/mac/point/y/$(energy)/%.mac: macro/example_point.mac
+	mkdir -p $(dir $@)
+	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@x @y @z/0 $* 0/;' $^ > $@
+
+$(path)/mac/point/z/$(energy)/%.mac: macro/example_point.mac
+	mkdir -p $(dir $@)
+	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@x @y @z/0 0 $*/;' $^ > $@
+
+#############################################################
+############### Generate h5 files in sim ####################
+#############################################################
+
+$(path)/root/%.root: $(path)/mac/%.mac
+	mkdir -p $(dir $@)
+	JPSim -n OFF -e ON -g $(geo) -m $^ -dn 0 -gpsFixTime ON -o $@ > $@.log 2>&1
+
+$(path)/track/%.root: $(path)/mac/%.mac
+	mkdir -p $(dir $@)
+	JPSim -n OFF -e ON -g $(geo) -m $^ -dn 0 -gpsFixTime ON -t ON -o $@ > $@.log 2>&1
+
+$(path)/track/%.h5: $(path)/track/%.root
+	mkdir -p $(dir $@)
+	/usr/bin/ConvertSimData $^ $@ > $@.log 2>&1
+
+$(path)/h5/%.h5: $(path)/root/%.root
+	mkdir -p $(dir $@)
+	/usr/bin/ConvertSimData $^ $@ > $@.log 2>&1
+
+$(path)/concat/%.h5: $(path)/h5/%.h5
+	mkdir -p $(dir $@)
+	python3 concat.py $^ -o $@ --pmt PMT_120.txt > $@.log
+
+$(path)/coeff/Zernike/PE/$(energy)/%.h5:
+	mkdir -p $(dir $@)
+	python3 calib/main.py -f $(path)/concat/ball/$(energy)/ --order $* --pmt PMT_120.txt --r_max $(Radius) -o $@
+
+$(path)/coeff/Zernike/Time/$(energy)/%.h5:
+	mkdir -p $(dir $@)
+	python3 calib/main.py -f $(path)/concat/ball/$(energy)/ --mode time --order $* --r_max $(Radius) -o $@
+
+$(path)/recon/%.h5: $(path)/root/%.root
+	mkdir -p $(dir $@)
+	python3 Recon/main.py -f $< --pe $(path)/coeff/Zernike/PE/2/30.h5 --PMT ./PMT_120.txt -o $@> $@.log
+
+%.csv: %.h5 $(path)/concat/ball/48.h5 $(path)/concat/ball/49.h5 $(path)/concat/ball/50.h5
+	python3 draw/validate.py --pe $< --time coeff/Zernike/Time/15.h5 -o $@
+
+.DELETE_ON_ERROR:
+.SECONDARY:

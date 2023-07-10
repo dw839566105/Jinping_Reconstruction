@@ -1,0 +1,13 @@
+*.pdf
+*.png
+*.root
+*.h5
+*.csv
+*log
+*test*
+*trash*
+*title*
+*.ipynb
+*ipynb*
+*vscode*
+*pycache*
