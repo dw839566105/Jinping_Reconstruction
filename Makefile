@@ -12,7 +12,7 @@ geo:=Sim/DetectorStructure/1t
 .PHONY: all
 all: recon
 
-targets: shell point/x point/y point/z ball
+sim: shell point/x point/y point/z ball
 recon: recon_shell recon_x recon_y recon_z recon_ball
 
 shell: $(scan_compact:%=$(path)/root/shell/$(energy)/%.root)
