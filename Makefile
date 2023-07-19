@@ -72,7 +72,7 @@ $(path)/root/%.root: $(path)/mac/%.mac
 ################# Convert .root to .h5 ######################
 $(path)/h5/%.h5: $(path)/root/%.root
 	mkdir -p $(dir $@)
-	/usr/bin/ConvertSimData $^ $@ > $@.log 2>&1
+	/home/douwei/root2hdf5/build/ConvertSimData $^ $@ > $@.log 2>&1
 
 ################# Calculate r, theta basis ##################
 $(path)/concat/%.h5: $(path)/h5/%.h5
@@ -92,11 +92,11 @@ Lo_Time :=
 define Leg_rule1
 $(path)/coeff/Legendre/PE/$(energy)/$(1)/$(2).h5: $(path)/concat/shell/$(energy)/$(1).h5
 	mkdir -p $$(dir $$@)
-	python3 calib/main_sLG.py -f $$< --order $(2) -o $$@ > $$@.log
+	python3 Calib/main_sLG.py -f $$< --order $(2) -o $$@ > $$@.log
 
 $(path)/coeff/Legendre/Time/$(energy)/$(1)/$(2).h5: $(path)/concat/shell/$(energy)/$(1).h5
 	mkdir -p $$(dir $$@)
-	python3 calib/main_sLG.py -f $$< --order $(2) --mode time -o $$@ > $$@.log
+	python3 Calib/main_sLG.py -f $$< --order $(2) --mode time -o $$@ > $$@.log
 
 Lo_PE += $(path)/coeff/Legendre/PE/$(energy)/$(1)/$(2).h5
 Lo_Time += $(path)/coeff/Legendre/Time/$(energy)/$(1)/$(2).h5
@@ -109,11 +109,11 @@ Lo_Time2 :=
 define Leg_rule2
 $(path)/coeff/Legendre/Gather/PE/$(energy)/$(1)/$(2).h5: $(Lo_PE)
 	mkdir -p $$(dir $$@)
-	python3 calib/Gather.py -p $(path)/coeff/Legendre/PE/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
+	python3 Calib/Gather.py -p $(path)/coeff/Legendre/PE/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
 
 $(path)/coeff/Legendre/Gather/Time/$(energy)/$(1)/$(2).h5: $(Lo_Time)
 	mkdir -p $$(dir $$@)
-	python3 calib/Gather.py -p $(path)/coeff/Legendre/Time/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
+	python3 Calib/Gather.py -p $(path)/coeff/Legendre/Time/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
 
 Lo_PE2 := $(path)/coeff/Legendre/Gather/PE/$(energy)/$(1)/$(2).h5
 Lo_Time2 := $(path)/coeff/Legendre/Gather/Time/$(energy)/$(1)/$(2).h5
@@ -124,24 +124,24 @@ $(foreach o1,$(order1), $(foreach o2,$(order2), $(eval $(call Leg_rule2,$(o1),$(
 ## Zernike basis
 $(path)/coeff/Zernike/PE/$(energy)/shell/%.h5: shell
 	mkdir -p $(dir $@)
-	python3 calib/main_shell.py -f $(path)/concat/shell --order $* --r_max 0.638 -o $@
+	python3 Calib/main_shell.py -f $(path)/concat/shell --order $* --r_max 0.638 -o $@
 
 $(path)/coeff/Zernike/Time/$(energy)/shell/%.h5: shell 
 	mkdir -p $(dir $@)
-	python3 calib/main_shell.py -f $(path)/concat/shell --mode time --order $* --r_max 0.638 -o $@
+	python3 Calib/main_shell.py -f $(path)/concat/shell --mode time --order $* --r_max 0.638 -o $@
 
 ## double Legendre basis
 $(path)/coeff/dLegendre/PE/$(energy)/shell/20/30.h5: shell
 	mkdir -p $(dir $@)
-	python3 calib/main_dLG_shell_new.py -f $(path)/concat/shell/$(energy)/ --order 20 30 --r_max 0.638 -o $@ > $@.log
+	python3 Calib/main_dLG_shell_new.py -f $(path)/concat/shell/$(energy)/ --order 20 30 --r_max 0.638 -o $@ > $@.log
 
 $(path)/coeff/dLegendre/PE/$(energy)/shell/30/20.h5: shell
 	mkdir -p $(dir $@)
-	python3 calib/main_dLG_shell_new.py -f $(path)/concat/shell/$(energy)/ --order 30 20 --r_max 0.638 -o $@ > $@.log
+	python3 Calib/main_dLG_shell_new.py -f $(path)/concat/shell/$(energy)/ --order 30 20 --r_max 0.638 -o $@ > $@.log
 
 ############## Validate  ######################
 %.csv: %.h5 vset
-	python3 draw/validate.py --pe $< --time coeff/Zernike/Time/15.h5 -o $@
+	python3 Draw/validate.py --pe $< --time coeff/Zernike/Time/15.h5 -o $@
 
 .DELETE_ON_ERROR:
 
