@@ -1,6 +1,6 @@
 import pub
 import numpy as np
-
+from polynomial import *
 import h5py
 import argparse
 from argparse import RawTextHelpFormatter
@@ -25,18 +25,27 @@ def main_Calib(filename, output, mode, order, offset, qt):
 
     tmp = time.time()
 
-    ## sphere
-    for i in np.arange(1,6):
-        if i == 1:
-            with h5py.File(filename + '%02d.h5' % i, "r") as ipt:
+    ## shell
+    for idx, i in enumerate(np.arange(0.01, 0.55, 0.01)):
+        print(i)
+        if idx == 0:
+            with h5py.File(filename + '%.2f.h5' % i, "r") as ipt:
                 h_hit = ipt['Concat'][()]
                 h_nonhit = ipt['Vertices'][()]
         else:
-            with h5py.File(filename + '%02d.h5' % i, "r") as ipt:
+            with h5py.File(filename + '%.2f.h5' % i, "r") as ipt:
                 data = ipt['Concat'][()]
                 data['EId'] += np.max(h_hit['EId'])
                 h_hit = np.hstack((h_hit, data))
                 h_nonhit = np.hstack((h_nonhit, ipt['Vertices'][()]))
+
+    for i in np.arange(0.55, 0.640, 0.002):
+        with h5py.File(filename + '%.3f.h5' % i, "r") as ipt:
+            print(i)
+            data = ipt['Concat'][()]
+            data['EId'] += np.max(h_hit['EId'])
+            h_hit = np.hstack((h_hit, data))
+            h_nonhit = np.hstack((h_nonhit, ipt['Vertices'][()]))
 
     EventId = h_hit['EId']
     ChannelId = h_hit['CId']
@@ -51,16 +60,24 @@ def main_Calib(filename, output, mode, order, offset, qt):
         y = h_hit['t']
         rho = h_hit['r']/1000/args.r_max
         theta = h_hit['theta']
-
-    o1, o2 = order
-    X1 = pub.legval(rho, np.eye(2*o1).reshape((2*o1, 2*o1, 1))).T
-    X1 = X1[:,::2]
-    X2 = pub.legval(np.cos(theta), np.eye(o2).reshape((o2, o2, 1))).T
-
-    X = np.empty((len(X1), o1*o2))
-    for i in range(o1):
-        for j in range(o2):
-            X[:,i*o2 + j] = X1[:,i] * X2[:,j]
+    with h5py.File('/mnt/stage/douwei/JP_1t_paper_check/coeff/Legendre/Gather/PE/2/40/30.h5') as h:
+    	coef1 = h['coeff'][:][:,:-1]
+    o1, o2 = coef1.shape
+    # o1 = 20
+    # o2 = 60
+    X11 = legval_raw(rho, np.eye(o2).reshape((o2, o2, 1))).T
+    X22 = legval_raw(np.cos(theta), np.eye(o1).reshape((o1, o1, 1))).T
+    XX = np.empty((len(X11), o2*o1))
+    for i in range(o2):
+        for j in range(o1):
+            XX[:,i*o1 + j] = X11[:,i] * X22[:,j]
+    A = np.ones((o2, o1))
+    A1 = A.copy()
+    A2 = A.copy()
+    A1[:, ::2] = 0
+    A2[::2, :] = 0
+    index = (A1 == A2).flatten()
+    X = XX[:,index]
 
     print(f'use {time.time() - tmp} s')
     print(f'the basis shape is {X.shape}, and the dependent variable shape is {y.shape}')
@@ -99,6 +116,8 @@ def main_Calib(filename, output, mode, order, offset, qt):
         AIC = np.zeros_like(coef_)
         std = np.zeros_like(coef_)           
         print('Waring! No AIC and std value')
+
+    # coef_ = coef_.reshape(o1, o2)
     print(result.summary())
 
     with h5py.File(output, 'w') as opt:
@@ -119,7 +138,7 @@ parser.add_argument('-o', '--output', dest='output', metavar='output[*.h5]', typ
 parser.add_argument('--mode', dest='mode', type=str, choices=['PE', 'time'], default='PE',
                     help='Which info should be used')
 
-parser.add_argument('--order', dest='order', metavar='N', type=int, nargs='+',
+parser.add_argument('--order', dest='order', type=int, nargs='+',
                     )
 
 parser.add_argument('--order2', dest='o2', metavar='N', type=int, default=10,
