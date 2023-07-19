@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description='Process template construction', fo
 parser.add_argument('--pe', dest='pe', metavar='PE[*.h5]', type=str,
                     help='The pe coefficient [.h5] to read')
 
-parser.add_argument('--time', dest='time', metavar='Time[*.h5]', type=str,
+parser.add_argument('--time', dest='time', metavar='Time[*.h5]', type=str, default=None,
                     help='The time coefficient [*.h5] to read')
 
 parser.add_argument('-o', '--output', dest='output', metavar='Coeff[*.h5]', type=str,
@@ -29,7 +29,6 @@ def loadh5(filename):
     return coef_, coef_type
 
 coef_PE, PE_type = loadh5(args.pe)
-coef_Time, Time_type = loadh5(args.time)
 
 def calc_probe(r, theta, coef, coef_type):
     if(coef_type=='Zernike'):
@@ -56,16 +55,15 @@ def calc_probe(r, theta, coef, coef_type):
 
 def concat():
     for index, i in enumerate(np.arange(50,60)):
-        h = tables.open_file(f'/mnt/stage/douwei/JP_1t_paper/concat/ball/2/{i:02d}.h5')
-        if index == 0:
-            df_nonhit = pd.DataFrame(h.root.Vertices[:])
-            df_hit = pd.DataFrame(h.root.Concat[:])
-        else:
-            df_nonhit = pd.concat([df_nonhit, pd.DataFrame(h.root.Vertices[:])], 
-                ignore_index=True)
-            df_hit = pd.concat([df_hit, pd.DataFrame(h.root.Concat[:])], 
-                ignore_index=True)
-        h.close()
+        with tables.open_file(f'/mnt/stage/douwei/JP_1t_paper/concat/ball/2/{i:02d}.h5') as h:
+            if index == 0:
+                df_nonhit = pd.DataFrame(h.root.Vertices[:])
+                df_hit = pd.DataFrame(h.root.Concat[:])
+            else:
+                df_nonhit = pd.concat([df_nonhit, pd.DataFrame(h.root.Vertices[:])], 
+                    ignore_index=True)
+                df_hit = pd.concat([df_hit, pd.DataFrame(h.root.Concat[:])], 
+                    ignore_index=True)
     return df_hit, df_nonhit
 
 def quantile(t, tau, ts, expect):
@@ -88,6 +86,8 @@ df.T.to_csv(args.output, header=False)
 
 # time part if needed in future
 '''
+coef_Time, Time_type = loadh5(args.time)
+
 expect_time_h = calc_probe(np.clip(df_hit['r'].values/r_max, 0, 1), df_hit['theta'].values, coef_Time, Time_type)
 LH_time = quantile(df_hit['t'], tau=0.1, ts=3, expect = expect_time_h)
 if (Time_type=='Zernike'):

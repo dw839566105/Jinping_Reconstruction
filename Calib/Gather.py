@@ -24,10 +24,9 @@ parser.add_argument('--o2', dest='order2', metavar='order2', type=int,
 args = parser.parse_args()
 
 def LoadDataPE_TW(filename):
-    h = tables.open_file(filename,'r')
-    d1 = h.root.coeff[:][:, np.newaxis]
-    d2 = h.root.coeff.attrs['std'][:, np.newaxis]
-    h.close()
+    with tables.open_file(filename,'r') as h:
+        d1 = h.root.coeff[:][:, np.newaxis]
+        d2 = h.root.coeff.attrs['std'][:, np.newaxis]
     return d1, d2
 
 def gather_coeff(path, ra, order, mode):
@@ -50,7 +49,7 @@ def gather_coeff(path, ra, order, mode):
 def main(path, order=5, fit_order=10):
     ra1 = np.arange(0.01,0.56,0.01)
     coeff1, std1 = gather_coeff(path, ra1, order, 'sparse')
-    ra2 = np.arange(0.55,0.64,0.01)
+    ra2 = np.arange(0.55,0.64,0.002)
     coeff2, std2 = gather_coeff(path, ra2, order, 'compact')
     
     rd = np.hstack((ra1, ra2))

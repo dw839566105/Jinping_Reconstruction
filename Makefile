@@ -2,8 +2,8 @@ evtmax:=1000
 energy:=2
 Radius:=0.65
 
-scan:=$(shell seq 0 0.01 $(Radius)) # different radius
-scan_compact:=$(shell seq 0 0.01 0.55) $(shell seq 0.55 0.002 0.644) # compact radius for calibration
+scan:=$(shell seq 0.01 0.01 $(Radius)) # different radius
+scan_compact:=$(shell seq 0.01 0.01 0.55) $(shell seq 0.55 0.002 0.644) # compact radius for calibration
 duplicate:=$(shell seq -w 1 30) # for spherical simulation data
 duplicate_v:=$(shell seq -w 60 99) # for validate data
 path:=/mnt/stage/douwei/JP_1t_github
@@ -41,7 +41,7 @@ order2 = $(shell seq -w 10 5 40)
 
 coeff_Z: $(order_Z:%=$(path)/coeff/Zernike/PE/$(energy)/shell/%.csv)
 coeff_dLeg: $(path)/coeff/dLegendre/PE/$(energy)/shell/20/30.csv $(path)/coeff/dLegendre/PE/$(energy)/shell/30/20.csv
-coeff_Leg:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).csv $(path)/coeff/Legendre/Gather/Time/$(energy)/$(o1)/$(o2).csv))
+coeff_Leg:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).csv $(path)/coeff/Legendre/Gather/Time/$(energy)/$(o1)/$(o2).h5))
 
 ################# generate macro files ######################
 $(path)/mac/shell/$(energy)/%.mac: Sim/macro/example_shell.mac
@@ -102,7 +102,7 @@ Lo_PE += $(path)/coeff/Legendre/PE/$(energy)/$(1)/$(2).h5
 Lo_Time += $(path)/coeff/Legendre/Time/$(energy)/$(1)/$(2).h5
 endef
 
-$(foreach r,$(scan), $(foreach o2,$(order2), $(eval $(call Leg_rule1,$(r),$(o2)))))
+$(foreach r,$(scan_compact), $(foreach o2,$(order2), $(eval $(call Leg_rule1,$(r),$(o2)))))
 # 2nd-step fit r
 Lo_PE2 :=
 Lo_Time2 :=
@@ -141,7 +141,7 @@ $(path)/coeff/dLegendre/PE/$(energy)/shell/30/20.h5: shell
 
 ############## Validate  ######################
 %.csv: %.h5 vset
-	python3 Draw/validate.py --pe $< --time coeff/Zernike/Time/15.h5 -o $@
+	python3 Draw/validate.py --pe $< -o $@
 
 .DELETE_ON_ERROR:
 
