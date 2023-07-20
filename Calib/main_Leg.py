@@ -7,7 +7,6 @@ import argparse, textwrap
 import time
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-from zernike import RZern
 import pandas as pd
 
 np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
@@ -101,10 +100,6 @@ parser.add_argument('-o', '--output', dest='output', metavar='output[*.h5]', typ
 
 parser.add_argument('--mode', dest='mode', type=str, choices=['PE', 'time'], default='PE',
                     help='Which info should be used')
-
-parser.add_argument('--order', dest='order', metavar='N', type=int, default=10,
-                    help=textwrap.dedent('''The max cutoff order. 
-                    For Zernike is (N+1)*(N+2)/2'''))
 
 parser.add_argument('--offset', dest='offset', metavar='filename[*.h5]', type=str, default=False)
 

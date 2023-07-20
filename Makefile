@@ -22,7 +22,7 @@ point/z: $(scan:%=$(path)/root/point/z/$(energy)/%.root)
 ball: $(duplicate:%=$(path)/root/ball/$(energy)/%.root)
 
 ball_v: $(duplicate_v:%=$(path)/root/ball/$(energy)/%.root)
-vset: $(duplicate_v:%=$(path)/concat/ball/$(energy)/%.h5)
+vset:=$(duplicate_v:%=$(path)/concat/ball/$(energy)/%.h5)
 
 recon_shell: $(scan:%=$(path)/recon/shell/$(energy)/%.h5)
 recon_x: $(scan:%=$(path)/recon/point/x/$(energy)/%.h5)
@@ -31,8 +31,8 @@ recon_z: $(scan:%=$(path)/recon/point/z/$(energy)/%.h5)
 recon_ball: $(duplicate:%=$(path)/recon/ball/$(energy)/%.h5)
 
 
-coeff_PE: $(path)/coeff/Legendre/Gather/PE/$(energy)/80/40.h5
-coeff_time: $(path)/coeff/Legendre/Gather/Time/$(energy)/80/10.h5
+coeff_PE:=$(path)/coeff/Legendre/Gather/PE/$(energy)/80/40.h5
+coeff_time:=$(path)/coeff/Legendre/Gather/Time/$(energy)/80/10.h5
 
 order_Z = $(shell seq -w 25 5 40)
 order_dLeg = $(shell seq -w 20 5 30)
@@ -77,10 +77,10 @@ $(path)/h5/%.h5: $(path)/root/%.root
 ################# Calculate r, theta basis ##################
 $(path)/concat/%.h5: $(path)/h5/%.h5
 	mkdir -p $(dir $@)
-	python3 concat.py $^ -o $@ --pmt PMT.txt > $@.log
+	python3 Sim/concat.py $^ -o $@ --pmt PMT.txt > $@.log
 
 ################# Reconstruction ############################
-$(path)/recon/%.h5: $(path)/root/%.root coeff_PE coeff_time
+$(path)/recon/%.h5: $(path)/root/%.root $(coeff_PE) $(coeff_time)
 	mkdir -p $(dir $@)
 	python3 Recon/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 
@@ -140,8 +140,8 @@ $(path)/coeff/dLegendre/PE/$(energy)/shell/30/20.h5: shell
 	python3 Calib/main_dLG_shell_new.py -f $(path)/concat/shell/$(energy)/ --order 30 20 --r_max 0.638 -o $@ > $@.log
 
 ############## Validate  ######################
-%.csv: %.h5 vset
-	python3 Draw/validate.py --pe $< -o $@
+%.csv: %.h5 $(vset)
+	python3 Draw/validate.py --pe $< -o $@ --vset $(wordlist 2, 100, $^)
 
 .DELETE_ON_ERROR:
 

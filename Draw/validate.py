@@ -18,6 +18,9 @@ parser.add_argument('--time', dest='time', metavar='Time[*.h5]', type=str, defau
 parser.add_argument('-o', '--output', dest='output', metavar='Coeff[*.h5]', type=str,
                     help='The output file [*.h5] to save')
 
+parser.add_argument('--vset', dest='vset', metavar='Validate[*.h5]', nargs='+', type=str,
+                    help='The validate file [*.h5] to input')
+
 args = parser.parse_args()
 
 def loadh5(filename):
@@ -32,7 +35,7 @@ coef_PE, PE_type = loadh5(args.pe)
 
 def calc_probe(r, theta, coef, coef_type):
     if(coef_type=='Zernike'):
-        cart = RZern(20)
+        cart = RZern(30)
         zo = cart.mtab>=0
         zs_radial = cart.coefnorm[zo, np.newaxis] * polyval(cart.rhotab.T[:, zo, np.newaxis], r.flatten())
         zs_angulars = angular(cart.mtab[zo].reshape(-1, 1), theta.flatten())
@@ -54,8 +57,8 @@ def calc_probe(r, theta, coef, coef_type):
     return probe.reshape(r.shape)
 
 def concat():
-    for index, i in enumerate(np.arange(50,60)):
-        with tables.open_file(f'/mnt/stage/douwei/JP_1t_paper/concat/ball/2/{i:02d}.h5') as h:
+    for index, i in enumerate(args.vset):
+        with tables.open_file(i) as h:
             if index == 0:
                 df_nonhit = pd.DataFrame(h.root.Vertices[:])
                 df_hit = pd.DataFrame(h.root.Concat[:])
