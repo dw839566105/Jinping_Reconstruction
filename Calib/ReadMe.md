@@ -1,6 +1,6 @@
 # calibration
 
-Fit the training data via different method.
+Fit the training data via different methods.
 
 `main_Leg`: The 1st step of the varying coefficient method. Fit the PE/time vs $\theta$ under different $r$. 
 
@@ -8,4 +8,4 @@ Fit the training data via different method.
 
 `main_dLeg`: Fit by double Legendre basis.
 
-`main_Zernike`: Fit by Zernike polynomils.
+`main_Zernike`: Fit by Zernike polynomials.
