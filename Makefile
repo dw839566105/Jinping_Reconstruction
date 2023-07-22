@@ -33,6 +33,7 @@ recon_ball: $(duplicate:%=$(path)/recon/ball/$(energy)/%.h5)
 
 coeff_PE:=$(path)/coeff/Legendre/Gather/PE/$(energy)/80/40.h5
 coeff_time:=$(path)/coeff/Legendre/Gather/Time/$(energy)/80/10.h5
+coeff: $(coeff_PE) $(coeff_time)
 
 order_Z = $(shell seq -w 25 5 40)
 order_dLeg = $(shell seq -w 20 5 30)
@@ -40,8 +41,11 @@ order1 = $(shell seq -w 10 10 90)
 order2 = $(shell seq -w 10 5 40)
 
 coeff_Z: $(order_Z:%=$(path)/coeff/Zernike/PE/$(energy)/shell/%.csv)
-coeff_dLeg: $(path)/coeff/dLegendre/PE/$(energy)/shell/20/30.csv $(path)/coeff/dLegendre/PE/$(energy)/shell/30/20.csv
+coeff_dLeg: $(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.h5 $(path)/coeff/dLegendre/PE/$(energy)/shell/60/20.h5
+coeff_dLeg_pdf: $(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.pdf $(path)/coeff/dLegendre/PE/$(energy)/shell/60/20.pdf
+coeff_dLeg_csv: $(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.csv $(path)/coeff/dLegendre/PE/$(energy)/shell/60/20.csv
 coeff_Leg:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).csv $(path)/coeff/Legendre/Gather/Time/$(energy)/$(o1)/$(o2).h5))
+coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).pdf))
 
 ################# generate macro files ######################
 $(path)/mac/shell/$(energy)/%.mac: Sim/macro/example_shell.mac
@@ -122,27 +126,29 @@ endef
 $(foreach o1,$(order1), $(foreach o2,$(order2), $(eval $(call Leg_rule2,$(o1),$(o2)))))
 
 ## Zernike basis
-$(path)/coeff/Zernike/PE/$(energy)/shell/%.h5: shell
+$(path)/coeff/Zernike/PE/$(energy)/shell/%.h5:
 	mkdir -p $(dir $@)
 	python3 Calib/main_shell.py -f $(path)/concat/shell --order $* --r_max 0.638 -o $@
 
-$(path)/coeff/Zernike/Time/$(energy)/shell/%.h5: shell 
+$(path)/coeff/Zernike/Time/$(energy)/shell/%.h5:
 	mkdir -p $(dir $@)
 	python3 Calib/main_shell.py -f $(path)/concat/shell --mode time --order $* --r_max 0.638 -o $@
 
 ## double Legendre basis
-$(path)/coeff/dLegendre/PE/$(energy)/shell/20/30.h5: shell
+$(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.h5:
 	mkdir -p $(dir $@)
-	python3 Calib/main_dLG_shell_new.py -f $(path)/concat/shell/$(energy)/ --order 20 30 --r_max 0.638 -o $@ > $@.log
+	python3 Calib/main_dLeg.py -f $(path)/concat/shell/$(energy)/ --order 40 30 --r_max 0.638 -o $@ > $@.log
 
-$(path)/coeff/dLegendre/PE/$(energy)/shell/30/20.h5: shell
+$(path)/coeff/dLegendre/PE/$(energy)/shell/60/20.h5:
 	mkdir -p $(dir $@)
-	python3 Calib/main_dLG_shell_new.py -f $(path)/concat/shell/$(energy)/ --order 30 20 --r_max 0.638 -o $@ > $@.log
+	python3 Calib/main_dLeg.py -f $(path)/concat/shell/$(energy)/ --order 60 20 --r_max 0.638 -o $@ > $@.log
 
 ############## Validate  ######################
 %.csv: %.h5 $(vset)
-	python3 Draw/validate.py --pe $< -o $@ --vset $(wordlist 2, 100, $^)
+	python3 Draw/validate.py --pe $< --vset $(wordlist 2, 100, $^) -o $@ 
 
+%.pdf: %.h5 $(vset)
+	python3 Draw/plot_probe.py --pe $< --time $(path)/coeff/Legendre/Gather/Time/$(energy)/80/10.h5 -o $@ --vset $(wordlist 2, 100, $^)
 .DELETE_ON_ERROR:
 
 .SECONDARY:

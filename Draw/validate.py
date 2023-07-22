@@ -24,11 +24,9 @@ parser.add_argument('--vset', dest='vset', metavar='Validate[*.h5]', nargs='+', 
 args = parser.parse_args()
 
 def loadh5(filename):
-    h = tables.open_file(filename)
-    coef_ = h.root.coeff[:]
-    # coef_type = 'Zernike'
-    coef_type = h.root.coeff.attrs.type
-    h.close()
+    with tables.open_file(filename) as h:
+        coef_ = h.root.coeff[:]
+        coef_type = h.root.coeff.attrs.type
     return coef_, coef_type
 
 coef_PE, PE_type = loadh5(args.pe)
@@ -46,14 +44,22 @@ def calc_probe(r, theta, coef, coef_type):
         r_basis = legval_raw(r, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
         probe = (r_basis*t_basis).sum(-1)
     elif(coef_type=='db_Legendre'):
-        o1, o2 = coef.shape
-        X1 = legval_raw(r, np.eye(2*o1).reshape((2*o1, 2*o1, 1))).T
-        X2 = legval_raw(np.cos(theta), np.eye(o2).reshape((o2, o2, 1))).T
-        X = np.empty((len(X1), o1*o2))
-        for i in range(o1):
-            for j in range(o2):
-                X[:,i*o2 + j] = X1[:,i] * X2[:,j]
-        probe = np.dot(X, coef.flatten())
+        o1, o2 = args.pe.split('.')[0].split('/')[-2:]
+        o1 = eval(o1)
+        o2 = eval(o2)
+        X11 = legval_raw(r, np.eye(o2).reshape((o2, o2, 1))).T
+        X22 = legval_raw(np.cos(theta), np.eye(o1).reshape((o1, o1, 1))).T
+        XX = np.empty((len(X11), o2*o1))
+        for i in range(o2):
+            for j in range(o1):
+                XX[:,i*o1 + j] = X11[:,i] * X22[:,j]
+        A = np.ones((o2, o1))
+        A1 = A.copy()
+        A2 = A.copy()
+        A1[:, ::2] = 0
+        A2[::2, :] = 0
+        index = (A1 == A2).flatten()
+        probe = np.dot(XX[:,index], coef.flatten())
     return probe.reshape(r.shape)
 
 def concat():

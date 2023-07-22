@@ -37,7 +37,7 @@ or more precisely, you can run `make` + `shell`, `point/x`, `point/y`, `point/z`
 Before reconstruction, you need to fit the model, in reconstruction, we use 40\*35 (r, \theta) on PE and 40\*10 (r, \theta) on timing. Obtain the coefficient via
 
 ```
-make coeff_PE coeff_Time
+make coeff
 ```
 
 Accrdingly, you can run the reconstruction by 

@@ -60,11 +60,8 @@ def main_Calib(filename, output, mode, order, offset, qt):
         y = h_hit['t']
         rho = h_hit['r']/1000/args.r_max
         theta = h_hit['theta']
-    with h5py.File('/mnt/stage/douwei/JP_1t_paper_check/coeff/Legendre/Gather/PE/2/40/30.h5') as h:
-    	coef1 = h['coeff'][:][:,:-1]
-    o1, o2 = coef1.shape
-    # o1 = 20
-    # o2 = 60
+
+    o1, o2 = order
     X11 = legval_raw(rho, np.eye(o2).reshape((o2, o2, 1))).T
     X22 = legval_raw(np.cos(theta), np.eye(o1).reshape((o1, o1, 1))).T
     XX = np.empty((len(X11), o2*o1))
