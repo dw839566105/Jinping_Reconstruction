@@ -33,7 +33,7 @@ coef_PE, PE_type = loadh5(args.pe)
 
 def calc_probe(r, theta, coef, coef_type):
     if(coef_type=='Zernike'):
-        cart = RZern(30)
+        cart = RZern(50)
         zo = cart.mtab>=0
         zs_radial = cart.coefnorm[zo, np.newaxis] * polyval(cart.rhotab.T[:, zo, np.newaxis], r.flatten())
         zs_angulars = angular(cart.mtab[zo].reshape(-1, 1), theta.flatten())
