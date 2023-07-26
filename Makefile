@@ -7,7 +7,7 @@ scan_compact:=$(shell seq 0.01 0.01 0.55) $(shell seq 0.55 0.002 0.644) # compac
 duplicate:=$(shell seq -w 1 30) # for spherical simulation data
 duplicate_v:=$(shell seq -w 60 99) # for validate data
 path:=/mnt/stage/douwei/JP_1t_github
-geo:=Sim/DetectorStructure/1t
+geo:=Simulation/DetectorStructure/1t
 
 .PHONY: all
 all: recon
@@ -48,23 +48,23 @@ coeff_Leg:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre
 coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).pdf))
 
 ################# generate macro files ######################
-$(path)/mac/shell/$(energy)/%.mac: Sim/macro/example_shell.mac
+$(path)/mac/shell/$(energy)/%.mac: Simulation/macro/example_shell.mac
 	mkdir -p $(dir $@)
 	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@inner/$*/; s/@outer/$*/' $^ > $@
 
-$(path)/mac/ball/$(energy)/%.mac: Sim/macro/example_ball.mac
+$(path)/mac/ball/$(energy)/%.mac: Simulation/macro/example_ball.mac
 	mkdir -p $(dir $@)
 	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@Radius/$(Radius)/' $^ > $@
 
-$(path)/mac/point/x/$(energy)/%.mac: Sim/macro/example_point.mac
+$(path)/mac/point/x/$(energy)/%.mac: Simulation/macro/example_point.mac
 	mkdir -p $(dir $@)
 	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@x @y @z/$* 0 0/;' $^ > $@
 
-$(path)/mac/point/y/$(energy)/%.mac: Sim/macro/example_point.mac
+$(path)/mac/point/y/$(energy)/%.mac: Simulation/macro/example_point.mac
 	mkdir -p $(dir $@)
 	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@x @y @z/0 $* 0/;' $^ > $@
 
-$(path)/mac/point/z/$(energy)/%.mac: Sim/macro/example_point.mac
+$(path)/mac/point/z/$(energy)/%.mac: Simulation/macro/example_point.mac
 	mkdir -p $(dir $@)
 	sed -e 's/@seed/$*/; s/@particle/e-/; s/@evtmax/$(evtmax)/; s/@energy/$(energy)/; s/@x @y @z/0 0 $*/;' $^ > $@
 
@@ -81,12 +81,12 @@ $(path)/h5/%.h5: $(path)/root/%.root
 ################# Calculate r, theta basis ##################
 $(path)/concat/%.h5: $(path)/h5/%.h5
 	mkdir -p $(dir $@)
-	python3 Sim/concat.py $^ -o $@ --pmt PMT.txt > $@.log
+	python3 Simulation/concat.py $^ -o $@ --pmt PMT.txt > $@.log
 
 ################# Reconstruction ############################
-$(path)/recon/%.h5: $(path)/root/%.root $(coeff_PE) $(coeff_time)
+$(path)/Reconstruction/%.h5: $(path)/root/%.root $(coeff_PE) $(coeff_time)
 	mkdir -p $(dir $@)
-	python3 Recon/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 
 ############## Different Calib models  ######################
 ## varying-coefficient method 
@@ -96,11 +96,11 @@ Lo_Time :=
 define Leg_rule1
 $(path)/coeff/Legendre/PE/$(energy)/$(1)/$(2).h5: $(path)/concat/shell/$(energy)/$(1).h5
 	mkdir -p $$(dir $$@)
-	python3 Calib/main_sLG.py -f $$< --order $(2) -o $$@ > $$@.log
+	python3 Regression/main_sLG.py -f $$< --order $(2) -o $$@ > $$@.log
 
 $(path)/coeff/Legendre/Time/$(energy)/$(1)/$(2).h5: $(path)/concat/shell/$(energy)/$(1).h5
 	mkdir -p $$(dir $$@)
-	python3 Calib/main_sLG.py -f $$< --order $(2) --mode time -o $$@ > $$@.log
+	python3 Regression/main_sLG.py -f $$< --order $(2) --mode time -o $$@ > $$@.log
 
 Lo_PE += $(path)/coeff/Legendre/PE/$(energy)/$(1)/$(2).h5
 Lo_Time += $(path)/coeff/Legendre/Time/$(energy)/$(1)/$(2).h5
@@ -113,11 +113,11 @@ Lo_Time2 :=
 define Leg_rule2
 $(path)/coeff/Legendre/Gather/PE/$(energy)/$(1)/$(2).h5: $(Lo_PE)
 	mkdir -p $$(dir $$@)
-	python3 Calib/Gather.py -p $(path)/coeff/Legendre/PE/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
+	python3 Regression/Gather.py -p $(path)/coeff/Legendre/PE/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
 
 $(path)/coeff/Legendre/Gather/Time/$(energy)/$(1)/$(2).h5: $(Lo_Time)
 	mkdir -p $$(dir $$@)
-	python3 Calib/Gather.py -p $(path)/coeff/Legendre/Time/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
+	python3 Regression/Gather.py -p $(path)/coeff/Legendre/Time/$(energy)/ -o $$@ --o1 $(2) --o2 $(1)
 
 Lo_PE2 := $(path)/coeff/Legendre/Gather/PE/$(energy)/$(1)/$(2).h5
 Lo_Time2 := $(path)/coeff/Legendre/Gather/Time/$(energy)/$(1)/$(2).h5
@@ -128,20 +128,20 @@ $(foreach o1,$(order1), $(foreach o2,$(order2), $(eval $(call Leg_rule2,$(o1),$(
 ## Zernike basis
 $(path)/coeff/Zernike/PE/$(energy)/shell/%.h5:
 	mkdir -p $(dir $@)
-	python3 Calib/main_shell.py -f $(path)/concat/shell --order $* --r_max 0.638 -o $@
+	python3 Regression/main_Zernike.py -f $(path)/concat/shell --order $* --r_max 0.638 -o $@
 
 $(path)/coeff/Zernike/Time/$(energy)/shell/%.h5:
 	mkdir -p $(dir $@)
-	python3 Calib/main_shell.py -f $(path)/concat/shell --mode time --order $* --r_max 0.638 -o $@
+	python3 Regression/main_Zernike.py -f $(path)/concat/shell --mode time --order $* --r_max 0.638 -o $@
 
 ## double Legendre basis
 $(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.h5:
 	mkdir -p $(dir $@)
-	python3 Calib/main_dLeg.py -f $(path)/concat/shell/$(energy)/ --order 40 30 --r_max 0.638 -o $@ > $@.log
+	python3 Regression/main_dLeg.py -f $(path)/concat/shell/$(energy)/ --order 40 30 --r_max 0.638 -o $@ > $@.log
 
 $(path)/coeff/dLegendre/PE/$(energy)/shell/60/20.h5:
 	mkdir -p $(dir $@)
-	python3 Calib/main_dLeg.py -f $(path)/concat/shell/$(energy)/ --order 60 20 --r_max 0.638 -o $@ > $@.log
+	python3 Regression/main_dLeg.py -f $(path)/concat/shell/$(energy)/ --order 60 20 --r_max 0.638 -o $@ > $@.log
 
 ############## Validate  ######################
 %.csv: %.h5 $(vset)
@@ -149,6 +149,7 @@ $(path)/coeff/dLegendre/PE/$(energy)/shell/60/20.h5:
 
 %.pdf: %.h5 $(vset)
 	python3 Draw/plot_probe.py --pe $< --time $(path)/coeff/Legendre/Gather/Time/$(energy)/80/10.h5 -o $@ --vset $(wordlist 2, 100, $^)
+
 .DELETE_ON_ERROR:
 
 .SECONDARY:

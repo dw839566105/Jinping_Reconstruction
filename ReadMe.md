@@ -8,13 +8,13 @@ The reconstruction flow is controlled by the `Makefile`.
 The code is arange in the following directory
 
 + Simulation
-> Locate in the `Sim`. Use macro files to simulate the training and validation data.
+> Locate in the `Simulation`. Use macro files to simulate the training and validation data.
 
-+ Calibration
-> Locate in the `Calib`. Based on the training data, obtain the model by different fit method.
++ Regression
+> Locate in the `Regression`. Based on the training data, obtain the model by different regression method.
 
 + Reconstruction
-> Locate in the `Recon`. Reconstruct the Simulation data. Notice that the raw data has different data structure. The code is at a local repository (https://gitlab.airelinux.org/jinping/production).
+> Locate in the `Reconstruction`. Reconstruct the Simulation data. Notice that the raw data has different data structure. The code is at a local repository (https://gitlab.airelinux.org/jinping/production).
 
 + Draw
 > Locate in the `Draw`. View necessary results via pictures and validate different models.
