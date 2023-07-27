@@ -7,7 +7,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 from scipy.optimize import minimize
 from zernike import RZern
-
+import pub
 import warnings
 warnings.filterwarnings('ignore')
 np.set_printoptions(precision=3, suppress=True)
@@ -17,13 +17,13 @@ shell = 0.65
 Gain = 164
 sigma = 40
 
-import pub
+
 def Recon(filename, output):
     '''
     reconstruction
 
-    fid: root reference file convert to .h5
-    fout: output file
+    filename: root reference file
+    output: output file
     '''
     # Create the output file and the group
     print(filename) # filename
@@ -45,7 +45,7 @@ def Recon(filename, output):
     data = f['SimTriggerInfo']
 
     PMTId = data['PEList.PMTId'].array()
-    # Time = data['PEList.HitPosInWindow'].array()
+    # Time = data['PEList.HitPosInWindow'].array() # adding the electronic
     Time = data['PEList.PulseTime'].array()
     Charge = data['PEList.Charge'].array()   
     SegmentId = ak.to_numpy(ak.flatten(data['truthList.SegmentId'].array()))
@@ -61,11 +61,11 @@ def Recon(filename, output):
         time_array = ak.to_numpy(time_array)
         # PMT order: 0-29
         # PE /= Gain
+        # For charge info
         # pe_array, cid = np.histogram(pmt, bins=np.arange(31)-0.5, weights=PE)
-
         # For hit info
         pe_array, cid = np.histogram(fired_PMT, bins=np.arange(len(PMT_pos)+1)) 
-        # For very rough estimate
+        # For very rough estimate from charge to PE
         # pe_array = np.round(pe_array)
 
         if np.sum(pe_array)==0:
@@ -75,7 +75,6 @@ def Recon(filename, output):
         ###############               inner recon                  #################
         ############################################################################
         x0_in = pub.Initial.FitGrid(pe_array, MeshIn.mesh, MeshIn.tpl, time_array)
-        # x0_in = np.ones(5)*0.1
         reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in
         reconwa['EventID'] = sid
         result_in = minimize(LH.Likelihood, x0_in[1:], method='SLSQP', 
@@ -96,7 +95,6 @@ def Recon(filename, output):
         ############################################################################
 
         x0_out = pub.Initial.FitGrid(pe_array, MeshOut.mesh, MeshOut.tpl, time_array)
-        # x0_out = np.ones(5)*0.1
         result_out = minimize(LH.Likelihood, x0_out[1:], method='SLSQP', 
             bounds=((-1, 1), (-1, 1), (-1, 1), (None, None)),
             args = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart))
@@ -130,8 +128,6 @@ def Recon(filename, output):
     TruthTable.flush()
     h5file.close()
 
-# Automatically add multiple root files created a program with max tree size limitation.
-
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
 parser.add_argument('-f', '--filename', dest='filename', metavar='filename[*.h5]', type=str,
                     help='The filename [*Q.h5] to read')
@@ -154,9 +150,9 @@ args = parser.parse_args()
 print(args.filename)
 PMT_pos = np.loadtxt(args.PMT)
 
-cart = RZern(30)
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
 if pe_type=='Zernike':
+    cart = RZern(30)
     LH = pub.LH_Zer
     MeshIn = pub.construct_Zer(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 3), cart)
     MeshOut = pub.construct_Zer(coeff_pe, PMT_pos, np.linspace(0.92, 1, 3), cart)

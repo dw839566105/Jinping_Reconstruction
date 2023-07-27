@@ -72,6 +72,5 @@ ax[i].legend(handles=p, loc='lower left', fontsize=15, ncol=2, title=r'$c^T_%d(r
 plt.subplots_adjust(wspace=0.2, hspace=0.1)
 fig.align_ylabels()
 fig.align_xlabels()
-#plt.tight_layout()
 fig.savefig('coeff_time.pdf')
 plt.close()

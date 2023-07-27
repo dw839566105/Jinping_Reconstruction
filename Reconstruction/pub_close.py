@@ -13,27 +13,16 @@ class Recon(tables.IsDescription):
     Likelihood = tables.Float16Col(pos=7)
 
 
-def ReadTpl(filename='../MC/template.h5'):
-    # Read MC grid recon result
-    h = tables.open_file(filename)
-    tpl = h.root.template[:]
-    mesh = np.vstack((h.root.x[:], h.root.y[:], h.root.z[:])).T
-    h.close()
-    return mesh, tpl
-
 class load_coeff:
-    def load_coeff_Single(PEFile = '../calib/PE_coeff_1t_29_80.h5', TimeFile = '../calib/Time_coeff2_1t_0.1.h5'):
-        # spherical harmonics coefficients for time and PEmake
+    def load_coeff_Single(PEFile, TimeFile):
+        # spherical harmonics coefficients for time and PE make
+        with tables.open_file(PEFile, 'r') as h:
+            coeff_pe = h.root.coeff[:]
+            pe_type = h.root.coeff.attrs['type']
 
-        h = tables.open_file(PEFile, 'r')
-        coeff_pe = h.root.coeff[:]
-        pe_type = h.root.coeff.attrs['type']
-        h.close()
-
-        h = tables.open_file(TimeFile,'r')
-        coeff_time = h.root.coeff[:]
-        time_type = h.root.coeff.attrs['type']
-        h.close()
+        with tables.open_file(TimeFile,'r') as h:
+            coeff_time = h.root.coeff[:]
+            time_type = h.root.coeff.attrs['type']
         return coeff_pe, coeff_time, pe_type, time_type
     
     def load_coeff_Probe(File = '/mnt/stage/probe/unbinned/ode/shrink/0-240.h5'):
@@ -46,6 +35,7 @@ class load_coeff:
         return coef, t_min, t_max
 
 def r2c(c):
+    # coordinate transformation
     v = np.zeros(3)
     v[2] = c[0] * np.cos(c[1]) #z
     rho = c[0] * np.sin(c[1])
@@ -55,10 +45,10 @@ def r2c(c):
 
 
 def c2r(c):
+    # coordinate transformation
     v = np.zeros(3)
     v[0] = np.linalg.norm(c)
     v[1] = np.arccos(c[2]/(v[0]+1e-6))
-    #v[2] = np.arctan(c[1]/(c[0]+1e-6)) + (c[0]<0)*np.pi
     v[2] = np.arctan2(c[1],c[0])
     return v
 
@@ -75,8 +65,8 @@ class LH_Zer:
         if expect:
             return energy
         else:
-            # L2 = LH.Likelihood_Time(basis_time, vertex[-1], fired_PMT, time_array, coeff_time)
-            return L1
+            L2 = LH.Likelihood_Time(basis_time, vertex[-1], fired_PMT, time_array, coeff_time)
+            return L1 + L2
 
     def Calc_basis(vertex, PMT_pos, cart): 
         # boundary
@@ -107,8 +97,7 @@ class LH_Zer:
         # p(q|lambda) = sum_n p(q|n)p(n|lambda)
         #         = sum_n Gaussian(q, n, sigma_n) * exp(-expect) * expect^n / n!
         # int p(q|lambda) dq = sum_n exp(-expect) * expect^n / n! = 1
-        # a0 = expect ** pe_array
-        # a2 = np.exp(-expect)
+
         lnL = - pe_array * np.log(expect) + expect
         return lnL.sum(), nml
 
@@ -128,8 +117,6 @@ class LH_Zer:
         # R = (1-tau)*np.sum(less) + tau*np.sum(more)
         # since lucy ddm is not sparse, use PE as weight
         L = (T_i-y) * (y<T_i) * (1-tau) + (y-T_i) * (y>=T_i) * tau
-        # nml = tau*(1-tau)/ts
-        # L_norm = np.exp(-1/ts*np.atleast_2d(L).T) * nml
         return L/ts
     
 class LH_Leg:
@@ -145,8 +132,8 @@ class LH_Leg:
         if expect:
             return energy
         else:
-            # L2 = LH_Leg.Likelihood_Time(rho, basis, vertex[-1], fired_PMT, time_array, coeff_time)
-            return L1
+            L2 = LH_Leg.Likelihood_Time(rho, basis, vertex[-1], fired_PMT, time_array, coeff_time)
+            return L1 + L2
 
     def Calc_basis(vertex, PMT_pos, coef): 
         # boundary
@@ -158,7 +145,6 @@ class LH_Leg:
         cos_theta = np.nan_to_num(cos_theta)
         cut = len(coef)
         t_basis = legval_raw(cos_theta, np.eye(cut).reshape((cut,cut,1))).T
-        # r_basis = legval_raw(rhof, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
         return rho, t_basis
 
 
@@ -175,8 +161,7 @@ class LH_Leg:
         # p(q|lambda) = sum_n p(q|n)p(n|lambda)
         #         = sum_n Gaussian(q, n, sigma_n) * exp(-expect) * expect^n / n!
         # int p(q|lambda) dq = sum_n exp(-expect) * expect^n / n! = 1
-        # a0 = expect ** pe_array
-        # a2 = np.exp(-expect)
+
         lnL = - pe_array * np.log(expect) + expect
         return lnL.sum(), nml
 
@@ -197,8 +182,6 @@ class LH_Leg:
         # R = (1-tau)*np.sum(less) + tau*np.sum(more)
         # since lucy ddm is not sparse, use PE as weight
         L = (T_i-y) * (y<T_i) * (1-tau) + (y-T_i) * (y>=T_i) * tau
-        # nml = tau*(1-tau)/ts
-        # L_norm = np.exp(-1/ts*np.atleast_2d(L).T) * nml
         return L/ts
     
 class construct_Zer:

@@ -1,7 +1,7 @@
 import numpy as np
-
-
 import argparse
+import h5py as h5
+import pandas as pd
 
 psr = argparse.ArgumentParser()
 psr.add_argument("ipt", type=str, help="Input detsim h5 file")
@@ -11,9 +11,6 @@ args = psr.parse_args()
 
 geo_card = np.loadtxt(args.pmt)
 npm = len(geo_card)
-
-import h5py as h5
-import pandas as pd
 
 ipt = h5.File(args.ipt, "r")
 

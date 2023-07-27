@@ -7,6 +7,7 @@ from tqdm import tqdm
 from numba import njit
 from zernike import RZern
 from matplotlib.colors import LogNorm
+from polynomial import *
 
 mpl.rcParams['xtick.labelsize'] = 20
 mpl.rcParams['ytick.labelsize'] = 20
@@ -80,7 +81,7 @@ ratio0, ratio1 = calc(xx, yy, theta)
 
 angle = np.deg2rad(23.5)
 
-with PdfPages('equiv_test.pdf') as pdf:
+with PdfPages('equiv.pdf') as pdf:
     for idx, ratio in enumerate([ratio0, ratio1]):
         ratio[xx**2 + yy**2 > 1] = np.nan
         
@@ -90,12 +91,10 @@ with PdfPages('equiv_test.pdf') as pdf:
         Nc = 2.5
         
         CS1 = ax.contour(tt, rr, np.log(ratio), levels=np.linspace(-Nc, Nc, 11), linestyles='solid', linewidths=1.5, colors='k')
-        # ax.clabel(CS1, inline=1, fontsize=10)
         CS2 = ax.contour(np.pi*2 - tt, rr, np.log(ratio), levels=np.linspace(-Nc, Nc, 11), linestyles='dotted', linewidths=1.5, colors='k')
-        # ax.clabel(CS2, inline=1, fontsize=10)
         fl = ax.fill_between(np.linspace(-np.pi/3, np.pi/3, 100), np.zeros(100), np.ones(100), color='grey', alpha=0.2)
-        h1,_ = CS1.legend_elements()
-        h2,_ = CS2.legend_elements()  
+        h1, _ = CS1.legend_elements()
+        h2, _ = CS2.legend_elements()  
 
         sc = ax.scatter(0, 1, marker='^', c='k', s=90, label='PMT')
         ax.text(0, 1.05, 'PMT 1', **text_kwargs)
@@ -110,18 +109,10 @@ with PdfPages('equiv_test.pdf') as pdf:
         pl = plt.plot(tc, np.ones_like(tc), c='k', label='Detector', linestyle='dashed', linewidth=1, alpha=0.5)
         
         if(idx==1):
-            '''
-            ax.legend([h1[0], h2[0], sc, pl[0]], ['$C_{12}$', '$C_{12}$', 'PMT', 'Detector'], 
-                      loc="lower left",
-                      bbox_to_anchor=(.5 + np.cos(angle)/2, .5 + np.sin(angle)/2))
-            '''
             ax.plot(np.pi/4.6, 0.5, 'o', ms=20, markerfacecolor="None",
                  markeredgecolor='red', markeredgewidth=2)
             ax.plot(np.pi/4.6, 0.85, 'o', ms=20, markerfacecolor="None",
                  markeredgecolor='red', markeredgewidth=2)
-            # ax.legend([h1[0], h2[0], fl], ['$C_{12}$', '$C_{13}$', 'shadow'], 
-            #          loc = 'lower center',
-            #         frameon=True)
         ax.set_ylim([0, 0.835/0.65 + 0.1])
         pdf.savefig(fig)
         plt.close()
@@ -140,9 +131,8 @@ with PdfPages('equiv_test.pdf') as pdf:
         Nc = 2.5
         
         CS1 = ax.contour(-xx_, yy_, np.log(ratio), levels=np.linspace(-Nc, Nc, 3), linestyles='solid', linewidths=1.5, colors='k')
-        # ax.clabel(CS1, inline=1, fontsize=10)
         CS2 = ax.contour(xx_, yy_, np.log(ratio), levels=np.linspace(-Nc, Nc, 3), linestyles='dotted', linewidths=1.5, colors='k')
-        # ax.clabel(CS2, inline=1, fontsize=10)
+
         h1,_ = CS1.legend_elements()
         h2,_ = CS2.legend_elements()
 
@@ -154,7 +144,7 @@ with PdfPages('equiv_test.pdf') as pdf:
         ax.text(-np.sin(theta), np.cos(theta) + 0.01, 'PMT 2', **text_kwargs)
         ax.set_xticks(np.linspace(0,2 * np.pi,9)[:-1], [r'$0$', r'$\pi/4$', r'$\pi/2$', r'$3\pi/4$', r'$\pi$', r'$5\pi/4$', r'$3\pi/2$', r'$7\pi/4$'])
         ax.tick_params(labelsize=20)
-        # plt.axis('equal')
+
         tc = np.linspace(-np.pi, np.pi, 100)
         pl = plt.plot(np.linspace(-1, 1, N), np.sqrt(1-np.linspace(-1, 1, N)**2), c='k', label='Detector', linestyle='dashed', linewidth=1, alpha=0.5)
         
@@ -162,19 +152,11 @@ with PdfPages('equiv_test.pdf') as pdf:
         fl = ax.fill_between(xsmall, -xsmall * (1/np.tan(np.pi/100)), np.sqrt(1-xsmall**2), color='grey', alpha=0.2)
         fl = ax.fill_between(-xsmall, -xsmall * (1/np.tan(np.pi/100)), np.sqrt(1-xsmall**2), color='grey', alpha=0.2)
         if(idx==1):
-            '''
-            ax.legend([h1[0], h2[0], sc, pl[0]], ['$C_{12}$', '$C_{12}$', 'PMT', 'Detector'], 
-                      loc="lower left",
-                      bbox_to_anchor=(.5 + np.cos(angle)/2, .5 + np.sin(angle)/2))
-            '''
             ax.plot(-0.03, 0.975, 'o', ms=20, markerfacecolor="None",
                  markeredgecolor='red', markeredgewidth=2)
             ax.plot(-0.03, 0.995, 'o', ms=20, markerfacecolor="None",
                  markeredgecolor='red', markeredgewidth=2)
-            # ax.legend([h1[0], h2[0], fl], ['$C_{12}$', '$C_{13}$', 'shadow'], 
-            #          loc = 'lower center',
-            #          fontsize=25,
-            #         frameon=True)  
+              
         ax.set_ylim([0.9, 1.03])
         ax.set_xlim([-0.1, +0.1])
         ax.set_xlabel('$x/r_\mathrm{LS}$')
@@ -183,23 +165,29 @@ with PdfPages('equiv_test.pdf') as pdf:
         plt.close()
         
     for i in range(2):
+        # if using zernike 
         filename = '/home/douwei/ReconJP/coeff/Zernike/PE/2/20.h5'
         coef_PE, coef_type = loadh5(filename)
-
-        h = tables.open_file(filename)
-        coeff = h.root.coeff[:]
-        h.close()
-
+        with tables.open_file(filename) as h:
+            coeff = h.root.coeff[:]
         cart = RZern(20)
         zo = cart.mtab>=0
         zs_radial = cart.coefnorm[zo, np.newaxis] * polyval(cart.rhotab.T[:, zo, np.newaxis], rr.flatten())
         zs_angulars = angular(cart.mtab[zo].reshape(-1, 1), tt.flatten())
-        probe = np.matmul((zs_radial * zs_angulars).T, coeff)
-        
+        probe1 = np.matmul((zs_radial * zs_angulars).T, coeff)
+
+        filename = '/mnt/stage/douwei/JP_1t_github/coeff/Legendre/Gather/PE/2/80/40.h5'
+        with tables.open_file(filename) as h:
+            coef = h.root.coeff[:]
+        cut = len(coef)
+        t_basis = legval_raw(np.cos(tt.flatten()), np.eye(cut).reshape((cut,cut,1))).T
+        r_basis = legval_raw(rr.flatten(), coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
+        probe = (r_basis*t_basis).sum(-1)
+
         shift = np.int16(N/10)
         fig = plt.figure()
         ax = plt.subplot(1, 1, 1, projection="polar", theta_offset = np.pi / 2)
-        # ax = plt.subplot(1, 1, 1)
+
         data = np.exp(probe).reshape(rr.shape)
         Nc = 1
         if i == 0:
@@ -217,10 +205,8 @@ with PdfPages('equiv_test.pdf') as pdf:
             xx_, yy_, p1 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), 1*np.pi*2/10)
             xx_, yy_, p2 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), -1*np.pi*2/10)
             xx_, yy_, p3 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), 2*np.pi*2/10)
-            # inset axes....
+
             axins = ax.inset_axes([0.0, 0.0, 0.4, 0.4])
-            # axins.contour(xx_, yy_, p1 - p2, levels=np.linspace(0, 1, 3), linestyles='solid', linewidths=1.5)
-            # axins.contour(xx_, yy_, p1 - p3, levels=np.linspace(0, 1, 3), linestyles='dotted', linewidths=1.5)
             axins.contour(-xx_ , yy_ , p3 - p1, levels=[0,],
                           linestyles='solid', linewidths=1.5)
             axins.contour(xx_ , yy_ , p1 - p2, levels=[0,], 
@@ -231,18 +217,10 @@ with PdfPages('equiv_test.pdf') as pdf:
                  markeredgecolor='red', markeredgewidth=2)
             xsmall = np.linspace(-0.5, 0, 100) 
             axins.fill_between(xsmall, -xsmall*np.tan(2/10*np.pi), np.sqrt(1-xsmall**2),
-                              color='grey', alpha=0.2)
-            # sub region of the original image
-            # axins.set_xticklabels('')
-            # axins.set_yticklabels('')
-
-            #ax.indicate_inset_zoom(axins, edgecolor="black")
-            
+                              color='grey', alpha=0.2)            
         else:
             CS1 = ax.contour(tt, rr, np.log(np.roll(data, shift, axis=0)/np.roll(data, 0, axis=0)), levels=np.linspace(-3*Nc, 0, 9), cmap='jet', linewidths=1.5)
-            # CS1 = ax.contour(xx_, yy_, np.log(p1_/p2_), levels=np.linspace(0.6, 0.61, 3), linestyles='solid', linewidths=1.5)
             CS2 = ax.contour(tt, rr, np.log(np.roll(data, -shift, axis=0)/np.roll(data, 0, axis=0)), levels=np.linspace(-3*Nc, 0, 9), cmap='jet',  linestyles='dotted', linewidths=1.5)
-            # CS2 = ax.contour(-xx_, yy_, np.log(p1_/p2_), levels=np.linspace(0, 1, 9), linestyles='dotted', linewidths=1.5)
             ax.scatter(np.pi*2/10, 0.83/0.65, marker='^', color='k', s=90)
             ax.scatter(-np.pi*2/10, 0.83/0.65, marker='^', color='k', s=90)
             ax.scatter(0, 0.83/0.65, marker='^', color='k', s=90, label='PMT')
@@ -255,22 +233,16 @@ with PdfPages('equiv_test.pdf') as pdf:
             xx_, yy_, p1 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), 0)
             xx_, yy_, p2 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), np.pi*2/10)
             xx_, yy_, p3 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), -np.pi*2/10)
-            # inset axes....
+            
             axins = ax.inset_axes([0.0, 0.0, 0.4, 0.4])
-            # axins.contour(xx_, yy_, p1 - p3, levels=np.linspace(0, 3, 3), linestyles='solid', linewidths=1.5)
             axins.contour(xx_ , yy_ , p1 - p3, levels=[0,], linestyles='solid', linewidths=1.5)
-            # axins.contour(xx_, yy_, p1 - p2, levels=np.linspace(0, 3, 3), linestyles='dotted', linewidths=1.5)
             axins.contour(xx_ , yy_ , p1 - p2, levels=[1.5,], linestyles='dotted', linewidths=1.5)
             xsmall = np.linspace(-1, 0, 100) * np.tan(1/10*np.pi) 
             axins.fill_between(xsmall, -np.linspace(-1, 0, 100) * np.tan(2.4/10*np.pi), np.sqrt(1-xsmall**2), color='grey', alpha=0.2)
             axins.fill_between(-xsmall, -np.linspace(-1, 0, 100) * np.tan(2.4/10*np.pi), np.sqrt(1-xsmall**2), color='grey', alpha=0.2)
             axins.plot(-0.250, 0.750, 'o', ms=40, markerfacecolor="None",
                  markeredgecolor='red', markeredgewidth=2)
-            # sub region of the original image
-            # axins.set_xticklabels('')
-            # axins.set_yticklabels('')
-
-            #ax.indicate_inset_zoom(axins, edgecolor="black")
+            
         dt = np.linspace(-0.5, 0.5, 100)
         axins.plot(dt , np.sqrt(1-dt**2) , c='k', label='Detector', linestyle='dashed', linewidth=1, alpha=0.5)
         axins.tick_params(axis='both', which='major', labelsize=10)
@@ -281,40 +253,32 @@ with PdfPages('equiv_test.pdf') as pdf:
         h2,_ = CS2.legend_elements()
         tc = np.linspace(-np.pi, np.pi, 100)
         pl = plt.plot(tc, np.ones_like(tc), c='k', label='Detector', linestyle='dashed', linewidth=1, alpha=0.5)
-        if(i==1):
-            '''
-            ax.legend([h1[0], h2[0], sc, pl[0], fl], ['Eq left', 'Eq right', 'PMT', 'Detector', 'shadow'], 
-                      loc="lower left",
-                      bbox_to_anchor=(.5 + np.cos(angle)/2, .5 + np.sin(angle)/2))
-            '''
-            # ax.legend([h1[0], h2[0], fl], ['$C_{12}$', '$C_{13}$', 'shadow'], 
-            #           loc="lower right",
-            #           frameon=True)
         ax.set_ylim([0, 0.83/0.65 + 0.1])
         ax.set_yticks([])
-        plt.close()
-
         pdf.savefig(fig)
         plt.close()
         
     for i in range(2):
-        filename = '/home/douwei/ReconJP/coeff/Zernike/PE/2/20.h5'
-        coef_PE, coef_type = loadh5(filename)
-
-        h = tables.open_file(filename)
-        coeff = h.root.coeff[:]
-        h.close()
-
-        cart = RZern(20)
-        zo = cart.mtab>=0
-        zs_radial = cart.coefnorm[zo, np.newaxis] * polyval(cart.rhotab.T[:, zo, np.newaxis], rr.flatten())
-        zs_angulars = angular(cart.mtab[zo].reshape(-1, 1), tt.flatten())
-        probe = np.matmul((zs_radial * zs_angulars).T, coeff)
+        # filename = '/home/douwei/ReconJP/coeff/Zernike/PE/2/20.h5'
+        # with tables.open_file(filename) as h:
+        #    coeff = h.root.coeff[:]
+        # cart = RZern(20)
+        # zo = cart.mtab>=0
+        # zs_radial = cart.coefnorm[zo, np.newaxis] * polyval(cart.rhotab.T[:, zo, np.newaxis], rr.flatten())
+        # zs_angulars = angular(cart.mtab[zo].reshape(-1, 1), tt.flatten())
+        # probe = np.matmul((zs_radial * zs_angulars).T, coeff)
         
+        filename = '/mnt/stage/douwei/JP_1t_github/coeff/Legendre/Gather/PE/2/80/40.h5'
+        with tables.open_file(filename) as h:
+            coef = h.root.coeff[:]
+        cut = len(coef)
+        t_basis = legval_raw(np.cos(tt.flatten()), np.eye(cut).reshape((cut,cut,1))).T
+        r_basis = legval_raw(rr.flatten(), coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
+        probe = (r_basis*t_basis).sum(-1)
+
         shift = np.int16(N/10)
         fig = plt.figure()
         ax = plt.subplot(1, 1, 1, projection="polar", theta_offset = np.pi / 2)
-        # ax = plt.subplot(1, 1, 1)
         data = np.exp(probe).reshape(rr.shape)
         Nc = 1
         if i == 0:
@@ -335,10 +299,8 @@ with PdfPages('equiv_test.pdf') as pdf:
             xx_, yy_, p1 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), 1*np.pi*2/10)
             xx_, yy_, p2 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), -1*np.pi*2/10)
             xx_, yy_, p3 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), 2*np.pi*2/10)
-            # inset axes....
+
             axins = ax.inset_axes([0.0, 0.0, 0.4, 0.4])
-            # axins.contour(xx_, yy_, p1 - p2, levels=np.linspace(0, 1, 3), linestyles='solid', linewidths=1.5)
-            # axins.contour(xx_, yy_, p1 - p3, levels=np.linspace(0, 1, 3), linestyles='dotted', linewidths=1.5)
             axins.contour(-xx_ , yy_ , p3 - p1, levels=[0,],
                           linestyles='solid', linewidths=1.5)
             axins.contour(xx_ , yy_ , p1 - p2, levels=[0,], 
@@ -350,18 +312,9 @@ with PdfPages('equiv_test.pdf') as pdf:
             xsmall = np.linspace(-0.5, 0, 100) 
             axins.fill_between(xsmall, -xsmall*np.tan(2/10*np.pi), np.sqrt(1-xsmall**2),
                               color='grey', alpha=0.2)
-            # sub region of the original image
-            # axins.set_xticklabels('')
-            # axins.set_yticklabels('')
-
-            #ax.indicate_inset_zoom(axins, edgecolor="black")
-            
         else:
             CS1 = ax.contour(tt, rr, np.log(np.roll(data, shift, axis=0)/np.roll(data, 0, axis=0)), levels=np.linspace(-3*Nc, 0, 9)[-1:], cmap='jet', linewidths=1.5)
-            # CS1 = ax.contour(xx_, yy_, np.log(p1_/p2_), levels=np.linspace(0.6, 0.61, 3), linestyles='solid', linewidths=1.5)
             CS2 = ax.contour(tt, rr, np.log(np.roll(data, -shift, axis=0)/np.roll(data, 0, axis=0)), levels=np.linspace(-3*Nc, 0, 9)[4:5], cmap='jet',  linestyles='dotted', linewidths=1.5)
-
-            # CS2 = ax.contour(-xx_, yy_, np.log(p1_/p2_), levels=np.linspace(0, 1, 9), linestyles='dotted', linewidths=1.5)
             ax.scatter(np.pi*2/10, 0.83/0.65, marker='^', color='k', s=90)
             ax.scatter(-np.pi*2/10, 0.83/0.65, marker='^', color='k', s=90)
             ax.scatter(0, 0.83/0.65, marker='^', color='k', s=90, label='PMT')
@@ -375,22 +328,15 @@ with PdfPages('equiv_test.pdf') as pdf:
             xx_, yy_, p1 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), 0)
             xx_, yy_, p2 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), np.pi*2/10)
             xx_, yy_, p3 = calc_cart(np.linspace(-0.5, 0.5, 300), np.linspace(0, 1, 300), -np.pi*2/10)
-            # inset axes....
             axins = ax.inset_axes([0.0, 0.0, 0.4, 0.4])
-            # axins.contour(xx_, yy_, p1 - p3, levels=np.linspace(0, 3, 3), linestyles='solid', linewidths=1.5)
             axins.contour(xx_ , yy_ , p1 - p3, levels=[0,], linestyles='solid', linewidths=1.5)
-            # axins.contour(xx_, yy_, p1 - p2, levels=np.linspace(0, 3, 3), linestyles='dotted', linewidths=1.5)
             axins.contour(xx_ , yy_ , p1 - p2, levels=[1.5,], linestyles='dotted', linewidths=1.5)
             xsmall = np.linspace(-1, 0, 100) * np.tan(1/10*np.pi) 
             axins.fill_between(xsmall, -np.linspace(-1, 0, 100) * np.tan(2.4/10*np.pi), np.sqrt(1-xsmall**2), color='grey', alpha=0.2)
             axins.fill_between(-xsmall, -np.linspace(-1, 0, 100) * np.tan(2.4/10*np.pi), np.sqrt(1-xsmall**2), color='grey', alpha=0.2)
             axins.plot(-0.250, 0.750, 'o', ms=40, markerfacecolor="None",
                  markeredgecolor='red', markeredgewidth=2)
-            # sub region of the original image
-            # axins.set_xticklabels('')
-            # axins.set_yticklabels('')
-
-            #ax.indicate_inset_zoom(axins, edgecolor="black")
+            
         dt = np.linspace(-0.5, 0.5, 100)
         axins.plot(dt , np.sqrt(1-dt**2) , c='k', label='Detector', linestyle='dashed', linewidth=1, alpha=0.5)
         axins.tick_params(axis='both', which='major', labelsize=10)
@@ -401,27 +347,11 @@ with PdfPages('equiv_test.pdf') as pdf:
         h2,_ = CS2.legend_elements()
         tc = np.linspace(-np.pi, np.pi, 100)
         pl = plt.plot(tc, np.ones_like(tc), c='k', label='Detector', linestyle='dashed', linewidth=1, alpha=0.5)
-        if(i==1):
-            '''
-            ax.legend([h1[0], h2[0], sc, pl[0], fl], ['Eq left', 'Eq right', 'PMT', 'Detector', 'shadow'], 
-                      loc="lower left",
-                      bbox_to_anchor=(.5 + np.cos(angle)/2, .5 + np.sin(angle)/2))
-
-            ax.legend([h1[0], h2[0], fl], ['$C_{12}$', '$C_{13}$', 'shadow'], 
-                      loc="lower right",
-                      frameon=True,
-                      fontsize=25,)
-            '''
         ax.set_ylim([0, 0.83/0.65 + 0.1])
         ax.set_yticks([])
-        plt.close()
-
         pdf.savefig(fig)
         plt.close()
-        
-    #mpl.rcParams['xtick.labelsize'] = 10
-    #mpl.rcParams['ytick.labelsize'] = 10
-    #mpl.rcParams['axes.labelsize'] = 15
+
     plt.figure()
     x = np.arange(5.0)
     y = np.arange(0,5,2*np.sqrt(3))
@@ -469,36 +399,18 @@ with PdfPages('equiv_test.pdf') as pdf:
             else:
                 shift = 0
             im.append((N/shift, ra, idx))
-            '''
-            for i in np.arange(0,100,1):
-                shift = np.int16(i)
-                #ratio = np.roll(data, 0, axis=0)/np.roll(data, shift, axis=0)
-                
-                if(ratio[-np.int16(i), -1]>10):
-                    # print('%.2f, %.2f, %.2f' % (300/(2*i+1), ra, idx))
-                    im.append((N/shift, ra, idx))
-                    break
-                if i == 99:
-                    im.append((N/shift, ra, idx))
-                    break
-            '''
+            
     # 3-d PMT number: 2/np.sqrt(3) * / np.pi * N**2
     cl = np.arange(7,21,2)             
     im = np.array(im)
     N1 = (im[:,0].reshape(len(rs), len(ts)).T)
     N2 = 2/ np.sqrt(3) / np.pi * N1**2
     
-    # number
     plt.figure()
-    # plt.contourf(1000*rs, ts, N2, levels=np.arange(7, 21, 2)**2/np.pi, cmap='jet')
     plt.contourf(1000*rs, ts, N2, levels=15, cmap='jet')
-    #plt.axhline(1.33, color='w', ls='--', lw = 2)
-    # plt.scatter(850, 1.33, s=30, marker='*', c='r')
     ax = plt.gca()
     ax.scatter(850, 1.33, marker='o', s=100, edgecolor='r', facecolor="None", linewidth=2, label='Jinping prototype')
     ax.scatter(900, 1.33, marker='*', s=100, edgecolor='r', facecolor="None", linewidth=2, label='Ideal detector')
-    # ax.text(950, 1.375, "Jinping Prototype", fontsize=30, color='w')
-    # plt.text(870, 1.40, 'Jinping')
     ax.tick_params(labelsize=20)
     ax.set_xticks((850, 1000, 1200, 1400), (832, 1000, 1200, 1400))
     cb = plt.colorbar(format='%d')
@@ -506,30 +418,18 @@ with PdfPages('equiv_test.pdf') as pdf:
     ax.axvline(900, lw=1, ls='dashed', c='k')
     ax.axvline(850, lw=1, ls='dashed', c='k')
     ax.axhline(1.33, lw=1, ls='dashed', c='k')
-    # ax.annotate("Jinping Prototype", xy=(850, 1.33), xytext=(1020, 1.375), color='w', fontsize=30,
-    #       arrowprops=dict(arrowstyle="-|>", facecolor='black', lw=1.5, shrinkA=0.1),)
-    
-    # ax.annotate("Ideal detector", xy=(900, 1.33), xytext=(1020, 1.235), color='w', fontsize=30,
-    #       arrowprops=dict(arrowstyle="-|>", facecolor='black', lw=1.5, shrinkA=0.1),)
-    
-    # cbar.set_ticks(cl)
-    # cbar.set_ticklabels(["{:d}".format(np.int16(i)) for i in np.arange(7,21,2)**2/np.pi])
     ax.legend(frameon=True, fontsize=22, loc=1)
     plt.xlabel(r'$r_\mathrm{PMT}$/mm')
     plt.ylabel(r'Refractive index')
     plt.tight_layout()
     pdf.savefig()
 
-    # coverage
     plt.figure()
-    # plt.contourf(1000*rs, ts, (im[:,0].reshape(len(rs), len(ts)).T)/4*0.2**2/0.65**2, levels=15, cmap='jet')
     plt.contourf(1000*rs, ts, N2 / 4 * 0.1**2 / (rs**2), levels=np.linspace(0.00, 0.64, 15), cmap='jet')
     plt.axhline(1.33, color='k', ls='--', lw=1)
     plt.gca().tick_params(labelsize=22)
     cb = plt.colorbar(format='%.2f')
     cb.ax.set_title('coverage', fontsize = 25, pad=18)
-    #cbar.set_ticks(cl)
-    #cbar.set_ticklabels(["{:d}".format(np.int16(i)) for i in np.arange(7,21,2)**2/np.pi])
     plt.xlabel('$r_\mathrm{PMT}$/mm')
     plt.ylabel('Index of the outer material')
     plt.tight_layout()

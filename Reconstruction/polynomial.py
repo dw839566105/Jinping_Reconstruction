@@ -1,7 +1,6 @@
 from numba import njit
 import numpy as np
 
-
 @njit
 def legval(x, n):
     res = np.zeros((n,) + x.shape)
@@ -10,7 +9,6 @@ def legval(x, n):
     for i in range(2, n):
         res[i] = ((2 * i - 1) * x * res[i - 1] - (i - 1) * res[i - 2]) / i
     return res
-
 
 @njit
 def legval_raw(x, c):

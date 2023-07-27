@@ -9,7 +9,6 @@ from polynomial import *
 from argparse import RawTextHelpFormatter
 import argparse
 
-# plt.rc('text', usetex=False)
 parser = argparse.ArgumentParser(description='Process template construction', formatter_class=RawTextHelpFormatter)
 parser.add_argument('--pe', dest='pe', metavar='PE[*.h5]', type=str,
                             help='The pe coefficient [.h5] to read')
@@ -79,10 +78,10 @@ def calc_probe(ddx, ddy, coef, coef_type, order, pad=False):
         zs_radial = cart.coefnorm[zo, np.newaxis] * polyval(cart.rhotab.T[:, zo, np.newaxis], rhof)
         zs_angulars = angular(cart.mtab[zo].reshape(-1, 1), theta)
         probe = np.matmul((zs_radial * zs_angulars).T, coef)
+
     elif(coef_type=='Legendre'):
         cut = len(coef)
         t_basis = legval_raw(np.cos(theta), np.eye(cut).reshape((cut,cut,1))).T
-        # r_basis = legval_raw(rhof, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
         r_basis = legval_raw(rhof, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
         probe = (t_basis*r_basis).sum(-1)
 
@@ -149,7 +148,6 @@ def time_plot(df1, df2, ax):
     ax.plot(np.mean(np.exp(expect_PE)[:,np.newaxis] * time_pdf, axis=0), label='fit')
     ax.hist(df2['t'], bins = xx, weights = 1/len(df1) * np.ones(len(df2)), label = 'truth')
     ax.set_xlabel('Time/ns')
-    # ax.set_ylabel('Poisson flux')
     ax.set_ylabel(r'$\lambda(t)$')
 
 df_hit, df_nonhit = concat()
@@ -174,10 +172,6 @@ with PdfPages(args.output) as pdf:
         ax.tick_params(labelsize=20)
         cb = fig.colorbar(im, pad=0.08)
         cb.ax.set_title(ctitle)
-        # if strs == 'PE':
-        #    ax.plot(np.linspace(0,np.pi, 100), np.ones(100)*0.26/0.65, c='k', ls='--', lw=2)
-        #    ax.plot(np.ones(100)*np.pi/6*5, np.linspace(0,1,100), c='k', ls='dotted', lw=2)
-        #ax.set_title(f'Pie of {strs}')
         pdf.savefig(fig)
         plt.close()
 

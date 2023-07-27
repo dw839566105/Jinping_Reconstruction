@@ -54,12 +54,11 @@ with PdfPages('Recon_h.pdf') as pp:
         plt.xticks(np.arange(0, 650, 200), ['%d' % i for i in np.arange(0,650,200)], fontsize=16)
         plt.yticks(np.arange(0, 650, 200), ['%d' % i for i in np.arange(0,650,200)], fontsize=16)
         
-        # plt.colorbar(m)
         pp.savefig(fig)
 
     prefix = '/mnt/stage/douwei/JP_1t_github/root/point/'
     PMT = np.loadtxt('./PMT.txt')
-    nPMT = int(31)
+    nPMT = int(30 + 1)
         
     for axis in ['x','z']:
         path = '%s/%s/2' % (prefix, axis)
@@ -103,12 +102,10 @@ with PdfPages('Recon_h.pdf') as pp:
         fig = plt.figure(figsize=(3, 3))
         ax = fig.add_subplot(1,1,1)
         m = ax.contourf(np.arange(10, 650, 10), np.arange(0, 650, 10), Hdata.T, norm=LogNorm(), cmap='Greys', vmax=1000)
-        # fig.colorbar(m)
         ax.plot([0, 650], [0, 650], 'r')
         ax.set(xlim = (0, 650), ylim = (0, 650))
         ax.set_xlabel('True $%s$/mm' % axis, fontsize=18)
         ax.set_ylabel('Recon $%s$/mm' % axis, fontsize=18)
         plt.xticks(np.arange(0, 650, 200), ['%d' % i for i in np.arange(0,650,200)], fontsize=16)
         plt.yticks(np.arange(0, 650, 200), ['%d' % i for i in np.arange(0,650,200)], fontsize=16)
-        # plt.colorbar(m)
         pp.savefig(fig)

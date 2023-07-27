@@ -114,7 +114,6 @@ def main_Calib(filename, output, mode, order, offset, qt):
         std = np.zeros_like(coef_)           
         print('Waring! No AIC and std value')
 
-    # coef_ = coef_.reshape(o1, o2)
     print(result.summary())
 
     with h5py.File(output, 'w') as opt:

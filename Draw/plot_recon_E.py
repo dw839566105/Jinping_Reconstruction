@@ -18,9 +18,8 @@ from polynomial import *
 
 mpl.rcParams['lines.markersize'] = 2
 def loadh5(filename):
-    h = tables.open_file(filename)
-    coef = h.root.coeff[:]
-    h.close()
+    with tables.open_file(filename) as h:
+        coef = h.root.coeff[:]
     return coef
 
 def template(vertex, coef, PMT_pos):
@@ -61,7 +60,6 @@ with PdfPages('Energy.pdf') as pp:
         for radius in np.arange(0.01, 0.65, 0.01):
             with tables.open_file('%s/%.2f.h5' % (path, radius)) as h:
                 v = tract(h)
-                h.close()
             data.append(np.vstack((v)).T)
         mean = []
         std = []
@@ -81,20 +79,10 @@ with PdfPages('Energy.pdf') as pp:
             ax1.scatter(np.arange(0.01, 0.65, 0.01)*1000, mean, color='r')
             ax1.fill_between(np.arange(0.01, 0.65, 0.01)*1000, mean - std, mean + std, color='r', alpha=0.1,
                                 label='Fit(ReconV)')
-            # ax1.scatter(np.arange(0.01, 0.65, 0.01)[:-5]*1000, c_mean[:-5], color='r')
-            # ax1.fill_between(np.arange(0.01, 0.65, 0.01)[:-5]*1000, 
-            #                 c_mean[:-5] - c_std[:-5], 
-            #                 c_mean[:-5] + c_std[:-5], 
-            #                 color='r', alpha=0.5, label='Cut')
         elif axis == 'z':
             ax2.scatter(np.arange(0.01, 0.65, 0.01)*1000, mean, color='r')
             ax2.fill_between(np.arange(0.01, 0.65, 0.01)*1000, mean - std, mean + std, color='r', alpha=0.1,
                             label='Fit(ReconV)')
-            # ax2.scatter(np.arange(0.01, 0.65, 0.01)[:-5]*1000, c_mean[:-5], color='r')
-            # ax2.fill_between(np.arange(0.01, 0.65, 0.01)[:-5]*1000, 
-            #                 c_mean[:-5] - c_std[:-5], 
-            #                 c_mean[:-5] + c_std[:-5], 
-            #                 color='r', alpha=0.5, label='Cut')
 
         PMT = np.loadtxt('./PMT.txt')
         coef = loadh5('/mnt/stage/douwei/JP_1t_github/coeff/Legendre/Gather/PE/2/80/35.h5')
