@@ -150,6 +150,7 @@ args = parser.parse_args()
 print(args.filename)
 PMT_pos = np.loadtxt(args.PMT)
 
+cart = None
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
 if pe_type=='Zernike':
     cart = RZern(30)

@@ -24,7 +24,7 @@ ball: $(duplicate:%=$(path)/root/ball/$(energy)/%.root)
 ball_v: $(duplicate_v:%=$(path)/root/ball/$(energy)/%.root)
 vset:=$(duplicate_v:%=$(path)/concat/ball/$(energy)/%.h5)
 
-recon_shell: $(scan:%=$(path)/recon/shell/$(energy)/%.h5)
+recon_shell: $(scan_compact:%=$(path)/recon/shell/$(energy)/%.h5)
 recon_x: $(scan:%=$(path)/recon/point/x/$(energy)/%.h5)
 recon_y: $(scan:%=$(path)/recon/point/y/$(energy)/%.h5)
 recon_z: $(scan:%=$(path)/recon/point/z/$(energy)/%.h5)
@@ -84,7 +84,7 @@ $(path)/concat/%.h5: $(path)/h5/%.h5
 	python3 Simulation/concat.py $^ -o $@ --pmt PMT.txt > $@.log
 
 ################# Reconstruction ############################
-$(path)/Reconstruction/%.h5: $(path)/root/%.root $(coeff_PE) $(coeff_time)
+$(path)/recon/%.h5: $(path)/root/%.root $(coeff_PE) $(coeff_time)
 	mkdir -p $(dir $@)
 	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 
