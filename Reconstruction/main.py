@@ -1,7 +1,7 @@
 # recon range: [-1,1], need * detector radius
 import numpy as np
 import tables
-import uproot3 as uproot
+import pyarrow.parquet as pq
 import awkward as ak
 import argparse
 from argparse import RawTextHelpFormatter
@@ -32,8 +32,6 @@ def Recon(filename, output):
                             filters = tables.Filters(complevel=9))
     group = "/"
     # Create tables
-    TruthTable = h5file.create_table(group, "Truth", pub.Recon, "Recon")
-    truth = TruthTable.row
     ReconWATable = h5file.create_table(group, "ReconWA", pub.Recon, "Recon")
     reconwa = ReconWATable.row
     ReconInTable = h5file.create_table(group, "ReconIn", pub.Recon, "Recon")
@@ -41,24 +39,15 @@ def Recon(filename, output):
     ReconOutTable = h5file.create_table(group, "ReconOut", pub.Recon, "Recon")
     reconout = ReconOutTable.row
     # Loop for event
-    f = uproot.open(filename)
-    data = f['SimTriggerInfo']
-
-    PMTId = data['PEList.PMTId'].array()
-    # Time = data['PEList.HitPosInWindow'].array() # adding the electronic
-    Time = data['PEList.PulseTime'].array()
-    Charge = data['PEList.Charge'].array()   
-    SegmentId = ak.to_numpy(ak.flatten(data['truthList.SegmentId'].array()))
-    VertexId = ak.to_numpy(ak.flatten(data['truthList.VertexId'].array()))
-    x = ak.to_numpy(ak.flatten(data['truthList.x'].array()))
-    y = ak.to_numpy(ak.flatten(data['truthList.y'].array()))
-    z = ak.to_numpy(ak.flatten(data['truthList.z'].array()))
-    E = ak.to_numpy(ak.flatten(data['truthList.EkMerged'].array()))
-    
-    for pmt, time_array, pe_array, sid, xt, yt, zt, Et in zip(PMTId, Time, Charge, SegmentId, x, y, z, E):
-        truth['x'], truth['y'], truth['z'], truth['E'], truth['EventID'] = xt, yt, zt, Et, sid
-        fired_PMT = ak.to_numpy(pmt)
-        time_array = ak.to_numpy(time_array)
+    f = pq.read_table(filename).to_pandas()
+    #暂时只取迭代的最后一步
+    filtered_f = f.groupby(['eid', 'ch']).apply(lambda x: x[x['step'] == x['step'].max()])
+    filtered_f = filtered_f.reset_index(drop=True)
+    grouped = filtered_f.groupby("eid")
+    for sid, group_f in grouped:
+        fired_PMT = group_f["ch"].values
+        time_array = group_f["PEt"].values
+        pe_array = group_f["q"].values
         # PMT order: 0-29
         # PE /= Gain
         # For charge info
@@ -109,7 +98,6 @@ def Recon(filename, output):
         reconout['Likelihood'] = result_out.fun
         
         print('-'*60)
-        print('Truth:', np.array((xt, yt, zt))/1000)
         print('inner')
         print('%d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
             % (sid, reconin['x'], reconin['y'], reconin['z'], 
@@ -118,19 +106,17 @@ def Recon(filename, output):
         print('%d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
             % (sid, reconout['x'], reconout['y'], reconout['z'], 
                 np.sqrt(reconout['x']**2 + reconout['y']**2 + reconout['z']**2), E_out, result_out.fun))
-        truth.append()
         reconin.append()
         reconout.append()
 
     # Flush into the output file
     ReconInTable.flush()
     ReconOutTable.flush()
-    TruthTable.flush()
     h5file.close()
 
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
-parser.add_argument('-f', '--filename', dest='filename', metavar='filename[*.h5]', type=str,
-                    help='The filename [*Q.h5] to read')
+parser.add_argument('-f', '--filename', dest='filename', metavar='filename[*.pqf]', type=str,
+                    help='The filename [*Q.pqf] to read')
 
 parser.add_argument('-o', '--output', dest='output', metavar='output[*.h5]', type=str,
                     help='The output filename [*.h5] to save')
@@ -151,8 +137,8 @@ print(args.filename)
 PMT_pos = np.loadtxt(args.PMT)
 
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
+cart = RZern(30)
 if pe_type=='Zernike':
-    cart = RZern(30)
     LH = pub.LH_Zer
     MeshIn = pub.construct_Zer(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 3), cart)
     MeshOut = pub.construct_Zer(coeff_pe, PMT_pos, np.linspace(0.92, 1, 3), cart)
@@ -160,4 +146,5 @@ elif pe_type == 'Legendre':
     LH = pub.LH_Leg
     MeshIn = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 30))
     MeshOut = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.92, 1, 30))
+#breakpoint()
 Recon(args.filename, args.output)
