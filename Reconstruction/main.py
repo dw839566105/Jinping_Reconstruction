@@ -41,21 +41,27 @@ def Recon(filename, output):
     # Loop for event
     f = pq.read_table(filename).to_pandas()
     #暂时只取迭代的最后一步
-    filtered_f = f.groupby(['eid', 'ch']).apply(lambda x: x[x['step'] == x['step'].max()])
-    filtered_f = filtered_f.reset_index(drop=True)
-    grouped = filtered_f.groupby("eid")
+    #filtered_f = f.groupby(['eid', 'ch']).apply(lambda x: x[x['step'] == x['step'].max()])
+    #f = filtered_f.reset_index(drop=True)
+
+    grouped = f.groupby("eid")
     for sid, group_f in grouped:
+        steps = group_f.groupby('step')['count'].first().sum()
+        group_f = group_f.reindex(group_f.index.repeat(group_f['count']))
         fired_PMT = group_f["ch"].values
         time_array = group_f["PEt"].values
-        pe_array = group_f["q"].values
-        # PMT order: 0-29
-        # PE /= Gain
-        # For charge info
-        # pe_array, cid = np.histogram(pmt, bins=np.arange(31)-0.5, weights=PE)
-        # For hit info
-        pe_array, cid = np.histogram(fired_PMT, bins=np.arange(len(PMT_pos)+1)) 
-        # For very rough estimate from charge to PE
-        # pe_array = np.round(pe_array)
+        #pe_array = group_f["e"].values
+
+        pe_array, cid = np.histogram(fired_PMT, bins=np.arange(len(PMT_pos)+1)) / steps
+
+        #count = group_f["count"].values
+
+        #取最后1个step做先验
+        #prior_f = group_f.groupby(['ch']).apply(lambda x: x[x['step'] == x['step'].max()])
+        #prior_f = prior_f.reset_index(drop=True)
+        #prior_fired_PMT = prior_f["ch"].values
+        #prior_pe_array, cid = np.histogram(prior_fired_PMT, bins=np.arange(len(PMT_pos)+1))
+        #prior_time_array = prior_f["PEt"].values
 
         if np.sum(pe_array)==0:
             continue
@@ -146,5 +152,5 @@ elif pe_type == 'Legendre':
     LH = pub.LH_Leg
     MeshIn = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 30))
     MeshOut = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.92, 1, 30))
-#breakpoint()
+
 Recon(args.filename, args.output)

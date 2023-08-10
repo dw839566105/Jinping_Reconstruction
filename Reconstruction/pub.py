@@ -130,7 +130,7 @@ class LH_Leg:
             return energy
         else:
             L2 = LH_Leg.Likelihood_Time(rho, basis, vertex[-1], fired_PMT, time_array, coeff_time)
-            return L1
+            return L1 + L2
 
     def Calc_basis(vertex, PMT_pos, coef): 
         # boundary
