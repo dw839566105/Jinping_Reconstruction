@@ -4,12 +4,12 @@ from polynomial import *
 
 class Recon(tables.IsDescription):
     EventID = tables.Int64Col(pos=0)    # EventNo
+    step = tables.Int64Col(pos=1)       # step
     x = tables.Float16Col(pos=0)        # x position
     y = tables.Float16Col(pos=1)        # y position
     z = tables.Float16Col(pos=2)        # z position
     E = tables.Float16Col(pos=3)        # Energy
     t = tables.Float16Col(pos=4)        # time
-    success = tables.Int64Col(pos=6)    # recon status
     Likelihood = tables.Float16Col(pos=7)
 
 class load_coeff:

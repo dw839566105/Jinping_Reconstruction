@@ -2,11 +2,11 @@
 import numpy as np
 import tables
 import pyarrow.parquet as pq
-import awkward as ak
 import argparse
 from argparse import RawTextHelpFormatter
 from scipy.optimize import minimize
 from zernike import RZern
+from MCMC import perturbation
 import pub
 import warnings
 warnings.filterwarnings('ignore')
@@ -16,6 +16,7 @@ np.set_printoptions(precision=3, suppress=True)
 shell = 0.65
 Gain = 164
 sigma = 40
+MC_step = 1000
 
 
 def Recon(filename, output):
@@ -40,80 +41,98 @@ def Recon(filename, output):
     reconout = ReconOutTable.row
     # Loop for event
     f = pq.read_table(filename).to_pandas()
-    #暂时只取迭代的最后一步
-    #filtered_f = f.groupby(['eid', 'ch']).apply(lambda x: x[x['step'] == x['step'].max()])
-    #f = filtered_f.reset_index(drop=True)
-
     grouped = f.groupby("eid")
-    for sid, group_f in grouped:
-        steps = group_f.groupby('step')['count'].first().sum()
-        group_f = group_f.reindex(group_f.index.repeat(group_f['count']))
-        fired_PMT = group_f["ch"].values
-        time_array = group_f["PEt"].values
-        #pe_array = group_f["e"].values
+    for sid, group_eid in grouped:
+        for step, group_step in group_eid.groupby("step"):
+            fired_PMT = group_step["ch"].values
+            time_array = group_step["PEt"].values
+            pe_array, cid = np.histogram(fired_PMT, bins=np.arange(len(PMT_pos)+1))
 
-        pe_array, cid = np.histogram(fired_PMT, bins=np.arange(len(PMT_pos)+1)) / steps
+            if np.sum(pe_array)==0:
+                continue
+            
+            ############################################################################
+            ###############               inner recon                  #################
+            ############################################################################
+            x0_in = pub.Initial.FitGrid(pe_array, MeshIn.mesh, MeshIn.tpl, time_array)
+            reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in
+            reconwa['EventID'] = sid
+            Likelihood_x0_in = LH.Likelihood(x0_in[1:],
+                    *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
+                    expect = False)
 
-        #count = group_f["count"].values
+            # 将梯度下降方法更改为一步有效的 MCMC 晃动
+            for iter in range(MC_step):
+                result_in = perturbation(x0_in[1:])
+                # 判断是否超出边界
+                if result_in[-1] <= 0 or np.sum(result_in[0:3] ** 2) >= np.square(1):
+                    continue
+                else:
+                    Likelihood_result_in = LH.Likelihood(result_in,
+                        *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
+                        expect = False)
+                    # 找到一步有效晃动退出
+                    if Likelihood_result_in > Likelihood_x0_in:
+                        x0_in[1:] = result_in
+                        Likelihood_x0_in = Likelihood_result_in
+                        break
 
-        #取最后1个step做先验
-        #prior_f = group_f.groupby(['ch']).apply(lambda x: x[x['step'] == x['step'].max()])
-        #prior_f = prior_f.reset_index(drop=True)
-        #prior_fired_PMT = prior_f["ch"].values
-        #prior_pe_array, cid = np.histogram(prior_fired_PMT, bins=np.arange(len(PMT_pos)+1))
-        #prior_time_array = prior_f["PEt"].values
+            E_in = LH.Likelihood(x0_in[1:],
+                *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
+                expect = True)
 
-        if np.sum(pe_array)==0:
-            continue
-        
-        ############################################################################
-        ###############               inner recon                  #################
-        ############################################################################
-        x0_in = pub.Initial.FitGrid(pe_array, MeshIn.mesh, MeshIn.tpl, time_array)
-        reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in
-        reconwa['EventID'] = sid
-        result_in = minimize(LH.Likelihood, x0_in[1:], method='SLSQP', 
-            bounds=((-1, 1), (-1, 1), (-1, 1), (None, None)),
-            args = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart))
-        E_in = LH.Likelihood(result_in.x,
-            *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-            expect = True)
+            reconin['EventID'] = sid
+            reconin['step'] = step
+            reconin['E'] = E_in
+            reconin['x'], reconin['y'], reconin['z'] = x0_in[1:4]*shell
+            reconin['Likelihood'] = Likelihood_x0_in
+            
+            ############################################################################
+            ###############               outer recon                  #################
+            ############################################################################
 
-        reconin['EventID'] = sid
-        reconin['E'] = E_in
-        reconin['x'], reconin['y'], reconin['z'] = result_in.x[:3]*shell
-        reconin['success'] = result_in.success
-        reconin['Likelihood'] = result_in.fun
-        
-        ############################################################################
-        ###############               outer recon                  #################
-        ############################################################################
+            x0_out = pub.Initial.FitGrid(pe_array, MeshOut.mesh, MeshOut.tpl, time_array)
+            Likelihood_x0_out = LH.Likelihood(x0_out[1:],
+                    *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
+                    expect = False)
 
-        x0_out = pub.Initial.FitGrid(pe_array, MeshOut.mesh, MeshOut.tpl, time_array)
-        result_out = minimize(LH.Likelihood, x0_out[1:], method='SLSQP', 
-            bounds=((-1, 1), (-1, 1), (-1, 1), (None, None)),
-            args = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart))
-        E_out = LH.Likelihood(result_out.x,
-            *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-            expect = True)
-        
-        reconout['EventID'] = sid
-        reconout['E'] = E_out
-        reconout['x'], reconout['y'], reconout['z'] = result_out.x[:3]*shell
-        reconout['success'] = result_out.success
-        reconout['Likelihood'] = result_out.fun
-        
-        print('-'*60)
-        print('inner')
-        print('%d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-            % (sid, reconin['x'], reconin['y'], reconin['z'], 
-                np.sqrt(reconin['x']**2 + reconin['y']**2 + reconin['z']**2), E_in, result_in.fun))
-        print('outer')
-        print('%d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-            % (sid, reconout['x'], reconout['y'], reconout['z'], 
-                np.sqrt(reconout['x']**2 + reconout['y']**2 + reconout['z']**2), E_out, result_out.fun))
-        reconin.append()
-        reconout.append()
+            # 将梯度下降方法更改为一步有效的 MCMC 晃动
+            for iter in range(MC_step):
+                result_out = perturbation(x0_out[1:])
+                # 判断是否超出边界
+                if result_out[-1] <= 0 or np.sum(result_out[0:3] ** 2) >= np.square(1):
+                    continue
+                else:
+                    Likelihood_result_out = LH.Likelihood(result_out,
+                        *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
+                        expect = False)
+                    # 找到一步有效晃动退出
+                    if Likelihood_result_out > Likelihood_x0_out:
+                        x0_out[1:] = result_out
+                        Likelihood_x0_out = Likelihood_result_out
+                        break
+                        
+            E_out = LH.Likelihood(x0_out[1:],
+                *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
+                expect = True)
+            
+            reconout['EventID'] = sid
+            reconout['step'] = step
+            reconout['E'] = E_out
+            reconout['x'], reconout['y'], reconout['z'] = x0_out[1:4]*shell
+            reconout['Likelihood'] = Likelihood_x0_out
+            
+            print('-'*60)
+            print('inner')
+            print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
+                % (sid, step, reconin['x'], reconin['y'], reconin['z'], 
+                    np.sqrt(reconin['x']**2 + reconin['y']**2 + reconin['z']**2), E_in, Likelihood_x0_in))
+            print('outer')
+            print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
+                % (sid, step, reconout['x'], reconout['y'], reconout['z'], 
+                    np.sqrt(reconout['x']**2 + reconout['y']**2 + reconout['z']**2), E_out, Likelihood_x0_out))
+            reconin.append()
+            reconout.append()
 
     # Flush into the output file
     ReconInTable.flush()

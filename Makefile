@@ -84,7 +84,7 @@ $(path)/concat/%.h5: $(path)/h5/%.h5
 	python3 Simulation/concat.py $^ -o $@ --pmt PMT.txt > $@.log
 
 ################# Reconstruction ############################
-$(path)/Reconstruction/%.h5: $(path)/root/%.root $(coeff_PE) $(coeff_time)
+Reconstruction/%.h5: ../FSMP/PE/%.pq $(coeff_PE) $(coeff_time)
 	mkdir -p $(dir $@)
 	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 
