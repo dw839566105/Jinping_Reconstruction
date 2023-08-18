@@ -6,8 +6,8 @@ T_max = 2 # 单步时间晃动限额 / ns
 
 # 随机晃动一步
 def perturbation(event):
-    theta = np.random.uniform(0, 2*np.pi)
-    phi = np.random.uniform(0, np.pi)
+    theta = np.random.uniform(0, np.pi)
+    phi = np.random.uniform(0, 2 * np.pi)
     r = np.random.uniform(-r_max, r_max)
     x = r * np.sin(theta) * np.cos(phi)
     y = r * np.sin(theta) * np.sin(phi)
