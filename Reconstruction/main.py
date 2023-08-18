@@ -26,8 +26,7 @@ def Recon(filename, output):
     filename: root reference file
     output: output file
     '''
-    # Create the output file and the group
-    print(filename) # filename
+
     # Create the output file and the group
     h5file = tables.open_file(output, mode="w", title="OneTonDetector",
                             filters = tables.Filters(complevel=9))
@@ -144,10 +143,10 @@ def Recon(filename, output):
             reconout['Likelihood'] = Likelihood_x0_out
 
             # print recon result
-            print('-'*60)
-            print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-                % (sid, step, reconmcmc['x'], reconmcmc['y'], reconmcmc['z'], 
-                    np.sqrt(reconmcmc['x']**2 + reconmcmc['y']**2 + reconmcmc['z']**2), reconmcmc['E'], reconmcmc['Likelihood']))
+            #print('-'*60)
+            #print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
+            #    % (sid, step, reconmcmc['x'], reconmcmc['y'], reconmcmc['z'], 
+            #        np.sqrt(reconmcmc['x']**2 + reconmcmc['y']**2 + reconmcmc['z']**2), reconmcmc['E'], reconmcmc['Likelihood']))
 
             reconwa.append()
             reconin.append()
@@ -183,7 +182,7 @@ parser.add_argument('--event', dest='event', type=int, default=None,
                     help='test event')
 
 args = parser.parse_args()
-print(args.filename)
+
 PMT_pos = np.loadtxt(args.PMT)
 
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
