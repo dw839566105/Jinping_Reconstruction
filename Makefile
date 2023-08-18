@@ -47,6 +47,18 @@ coeff_dLeg_csv: $(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.csv $(path)/coe
 coeff_Leg:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).csv $(path)/coeff/Legendre/Gather/Time/$(energy)/$(o1)/$(o2).h5))
 coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).pdf))
 
+################# Reconstruction ############################
+coeff_PE:=coeff/Legendre/Gather/PE/2/80/40.h5
+coeff_time:=coeff/Legendre/Gather/Time/2/80/10.h5
+Reconstruction/%.h5: ../FSMP/PE/%.pq $(coeff_PE_temp) $(coeff_time_temp)
+	mkdir -p $(dir $@)
+	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+
+Fig/%.pdf: Reconstruction/%.h5
+	mkdir -p $(dir $@)
+	python3 Fig.py $^ -o $@ > $@.log
+
+
 ################# generate macro files ######################
 $(path)/mac/shell/$(energy)/%.mac: Simulation/macro/example_shell.mac
 	mkdir -p $(dir $@)
@@ -82,11 +94,6 @@ $(path)/h5/%.h5: $(path)/root/%.root
 $(path)/concat/%.h5: $(path)/h5/%.h5
 	mkdir -p $(dir $@)
 	python3 Simulation/concat.py $^ -o $@ --pmt PMT.txt > $@.log
-
-################# Reconstruction ############################
-Reconstruction/%.h5: ../FSMP/PE/%.pq $(coeff_PE) $(coeff_time)
-	mkdir -p $(dir $@)
-	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 
 ############## Different Calib models  ######################
 ## varying-coefficient method 

@@ -35,12 +35,11 @@ def Recon(filename, output):
     # Create tables
     ReconWATable = h5file.create_table(group, "ReconWA", pub.Recon, "Recon")
     reconwa = ReconWATable.row
-    ReconInTable = h5file.create_table(group, "ReconIn", pub.Recon, "Recon")
-    reconin = ReconInTable.row
-    ReconOutTable = h5file.create_table(group, "ReconOut", pub.Recon, "Recon")
-    reconout = ReconOutTable.row
+    ReconMCMCTable = h5file.create_table(group, "ReconMCMC", pub.Recon, "Recon")
+    reconmcmc = ReconMCMCTable.row
     # Loop for event
     f = pq.read_table(filename).to_pandas()
+    f = f[(f['eid'] == 36350) & (f['step'] > 2500)] # burn 前 2500 步
     grouped = f.groupby("eid")
     for sid, group_eid in grouped:
         for step, group_step in group_eid.groupby("step"):
@@ -55,7 +54,8 @@ def Recon(filename, output):
             ###############               inner recon                  #################
             ############################################################################
             x0_in = pub.Initial.FitGrid(pe_array, MeshIn.mesh, MeshIn.tpl, time_array)
-            reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in
+            reconwa['step'] = step
+            reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in # x,y,z是归一化距离
             reconwa['EventID'] = sid
             Likelihood_x0_in = LH.Likelihood(x0_in[1:],
                     *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
@@ -80,12 +80,6 @@ def Recon(filename, output):
             E_in = LH.Likelihood(x0_in[1:],
                 *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
                 expect = True)
-
-            reconin['EventID'] = sid
-            reconin['step'] = step
-            reconin['E'] = E_in
-            reconin['x'], reconin['y'], reconin['z'] = x0_in[1:4]*shell
-            reconin['Likelihood'] = Likelihood_x0_in
             
             ############################################################################
             ###############               outer recon                  #################
@@ -116,27 +110,27 @@ def Recon(filename, output):
                 *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
                 expect = True)
             
-            reconout['EventID'] = sid
-            reconout['step'] = step
-            reconout['E'] = E_out
-            reconout['x'], reconout['y'], reconout['z'] = x0_out[1:4]*shell
-            reconout['Likelihood'] = Likelihood_x0_out
+            reconmcmc['EventID'] = sid
+            reconmcmc['step'] = step
+            if Likelihood_x0_out > Likelihood_x0_in:
+                reconmcmc['E'] = E_out
+                reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_out[1:4]*shell
+                reconmcmc['Likelihood'] = Likelihood_x0_out
+            else:
+                reconmcmc['E'] = E_in
+                reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_in[1:4]*shell
+                reconmcmc['Likelihood'] = Likelihood_x0_in               
             
+            # print recon result
             print('-'*60)
-            print('inner')
             print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-                % (sid, step, reconin['x'], reconin['y'], reconin['z'], 
-                    np.sqrt(reconin['x']**2 + reconin['y']**2 + reconin['z']**2), E_in, Likelihood_x0_in))
-            print('outer')
-            print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-                % (sid, step, reconout['x'], reconout['y'], reconout['z'], 
-                    np.sqrt(reconout['x']**2 + reconout['y']**2 + reconout['z']**2), E_out, Likelihood_x0_out))
-            reconin.append()
-            reconout.append()
+                % (sid, step, reconmcmc['x'], reconmcmc['y'], reconmcmc['z'], 
+                    np.sqrt(reconmcmc['x']**2 + reconmcmc['y']**2 + reconmcmc['z']**2), reconmcmc['E'], reconmcmc['Likelihood']))
+
+            reconmcmc.append()
 
     # Flush into the output file
-    ReconInTable.flush()
-    ReconOutTable.flush()
+    ReconMCMCTable.flush()
     h5file.close()
 
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
