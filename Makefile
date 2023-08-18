@@ -50,14 +50,20 @@ coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Lege
 ################# Reconstruction ############################
 coeff_PE_temp:=coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=coeff/Legendre/Gather/Time/2/80/10.h5
-Reconstruction/%.h5: ../FSMP/PE/%.pq $(coeff_PE_temp) $(coeff_time_temp)
+Reconresult/%.h5: PE/%.pq $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+#	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+#	单事例检验收敛性
+	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ --event 3236868 > $@.log
 
-Fig/%.pdf: Reconstruction/%.h5
+Fig/events/%.pdf: Reconresult/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig.py $^ -o $@ > $@.log
+	python3 Fig/plot_recon.py $^ -o $@
 
+# 单事例不同步骤重建结果分布图
+Fig/steps/%.pdf: Reconresult/%.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_recon_singleEvent.py $^ -o $@
 
 ################# generate macro files ######################
 $(path)/mac/shell/$(energy)/%.mac: Simulation/macro/example_shell.mac

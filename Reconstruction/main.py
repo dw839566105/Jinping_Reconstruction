@@ -35,11 +35,21 @@ def Recon(filename, output):
     # Create tables
     ReconWATable = h5file.create_table(group, "ReconWA", pub.Recon, "Recon")
     reconwa = ReconWATable.row
+    # 暂时把 reconin 和 reconout 记录下来。（用来比较收敛性，后续删去）
+    ReconInTable = h5file.create_table(group, "ReconIn", pub.Recon, "Recon")
+    reconin = ReconInTable.row
+    ReconOutTable = h5file.create_table(group, "ReconOut", pub.Recon, "Recon")
+    reconout = ReconOutTable.row
     ReconMCMCTable = h5file.create_table(group, "ReconMCMC", pub.Recon, "Recon")
     reconmcmc = ReconMCMCTable.row
     # Loop for event
     f = pq.read_table(filename).to_pandas()
-    f = f[(f['eid'] == 36350) & (f['step'] > 2500)] # burn 前 2500 步
+    f = f[f['step'] > 2500] # burn 前 2500 步
+
+    # single event test
+    if args.event:
+        f = f[f['eid'] == args.event]
+
     grouped = f.groupby("eid")
     for sid, group_eid in grouped:
         for step, group_step in group_eid.groupby("step"):
@@ -119,18 +129,36 @@ def Recon(filename, output):
             else:
                 reconmcmc['E'] = E_in
                 reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_in[1:4]*shell
-                reconmcmc['Likelihood'] = Likelihood_x0_in               
+                reconmcmc['Likelihood'] = Likelihood_x0_in        
             
+            # 记录 reconin 和 reconout （用来比较收敛性，后续删去）
+            reconin['EventID'] = sid
+            reconin['step'] = step
+            reconin['E'] = E_in
+            reconin['x'], reconin['y'], reconin['z'] = x0_in[1:4]*shell
+            reconin['Likelihood'] = Likelihood_x0_in
+            reconout['EventID'] = sid
+            reconout['step'] = step
+            reconout['E'] = E_out
+            reconout['x'], reconout['y'], reconout['z'] = x0_out[1:4]*shell
+            reconout['Likelihood'] = Likelihood_x0_out
+
             # print recon result
             print('-'*60)
             print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
                 % (sid, step, reconmcmc['x'], reconmcmc['y'], reconmcmc['z'], 
                     np.sqrt(reconmcmc['x']**2 + reconmcmc['y']**2 + reconmcmc['z']**2), reconmcmc['E'], reconmcmc['Likelihood']))
 
+            reconwa.append()
+            reconin.append()
+            reconout.append()
             reconmcmc.append()
 
     # Flush into the output file
-    ReconMCMCTable.flush()
+    ReconWATable.flush() # reconin 的电荷重心法初值
+    ReconInTable.flush() # 初值在全反射区域内得到的重建结果
+    ReconOutTable.flush() # 初值在全反射区域外得到的重建结果
+    ReconMCMCTable.flush() # 重建结果
     h5file.close()
 
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
@@ -150,6 +178,9 @@ parser.add_argument('--time', dest='time', metavar='TimeCoeff[*.h5]', type=str,
 
 parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, default=r'./PMT.txt',
                     help='The PMT file [*.txt] to be loaded')
+
+parser.add_argument('--event', dest='event', type=int, default=None,
+                    help='test event')
 
 args = parser.parse_args()
 print(args.filename)
