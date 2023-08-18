@@ -48,8 +48,8 @@ coeff_Leg:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre
 coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).pdf))
 
 ################# Reconstruction ############################
-coeff_PE:=coeff/Legendre/Gather/PE/2/80/40.h5
-coeff_time:=coeff/Legendre/Gather/Time/2/80/10.h5
+coeff_PE_temp:=coeff/Legendre/Gather/PE/2/80/40.h5
+coeff_time_temp:=coeff/Legendre/Gather/Time/2/80/10.h5
 Reconstruction/%.h5: ../FSMP/PE/%.pq $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
 	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
