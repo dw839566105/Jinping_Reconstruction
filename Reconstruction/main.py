@@ -16,7 +16,8 @@ np.set_printoptions(precision=3, suppress=True)
 shell = 0.65
 Gain = 164
 sigma = 40
-MC_step = 1000
+MC_step = 5 # 进行有效 mcmc 晃动步数
+MC_maxfind = 1000 # 寻找一步有效 mcmc 晃动时执行的最多步数
 
 
 def Recon(filename, output):
@@ -51,6 +52,15 @@ def Recon(filename, output):
 
     grouped = f.groupby("eid")
     for sid, group_eid in grouped:
+        # 电荷重心法给出每个事例初值
+        minstep = np.min(group_eid["step"].values)
+        condition = (group_eid['step'] == minstep)
+        fired_PMT_init = group_eid[condition]["ch"].values
+        time_array_init = group_eid[condition]["PEt"].values
+        pe_array_init, cid = np.histogram(fired_PMT_init, bins=np.arange(len(PMT_pos)+1))
+        x0_in = pub.Initial.FitGrid(pe_array_init, MeshIn.mesh, MeshIn.tpl, time_array_init)
+        x0_out = pub.Initial.FitGrid(pe_array_init, MeshOut.mesh, MeshOut.tpl, time_array_init)
+
         for step, group_step in group_eid.groupby("step"):
             fired_PMT = group_step["ch"].values
             time_array = group_step["PEt"].values
@@ -59,65 +69,28 @@ def Recon(filename, output):
             if np.sum(pe_array)==0:
                 continue
             
+            event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
+
             ############################################################################
             ###############               inner recon                  #################
             ############################################################################
-            x0_in = pub.Initial.FitGrid(pe_array, MeshIn.mesh, MeshIn.tpl, time_array)
             reconwa['step'] = step
             reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in # x,y,z是归一化距离
             reconwa['EventID'] = sid
-            Likelihood_x0_in = LH.Likelihood(x0_in[1:],
-                    *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-                    expect = False)
 
-            # 将梯度下降方法更改为一步有效的 MCMC 晃动
-            for iter in range(MC_step):
-                result_in = perturbation(x0_in[1:])
-                # 判断是否超出边界
-                if result_in[-1] <= 0 or np.sum(result_in[0:3] ** 2) >= np.square(1):
-                    continue
-                else:
-                    Likelihood_result_in = LH.Likelihood(result_in,
-                        *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-                        expect = False)
-                    # 找到一步有效晃动退出
-                    if Likelihood_result_in > Likelihood_x0_in:
-                        x0_in[1:] = result_in
-                        Likelihood_x0_in = Likelihood_result_in
-                        break
-
-            E_in = LH.Likelihood(x0_in[1:],
-                *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-                expect = True)
+            # 进行MCMC晃动
+            for mcstep in range(MC_step):
+                x0_in[1:], Likelihood_x0_in = mcmc(x0_in[1:], event_parameter)
+            E_in = LH.Likelihood(x0_in[1:], *event_parameter, expect = True)
             
             ############################################################################
             ###############               outer recon                  #################
             ############################################################################
 
-            x0_out = pub.Initial.FitGrid(pe_array, MeshOut.mesh, MeshOut.tpl, time_array)
-            Likelihood_x0_out = LH.Likelihood(x0_out[1:],
-                    *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-                    expect = False)
-
-            # 将梯度下降方法更改为一步有效的 MCMC 晃动
-            for iter in range(MC_step):
-                result_out = perturbation(x0_out[1:])
-                # 判断是否超出边界
-                if result_out[-1] <= 0 or np.sum(result_out[0:3] ** 2) >= np.square(1):
-                    continue
-                else:
-                    Likelihood_result_out = LH.Likelihood(result_out,
-                        *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-                        expect = False)
-                    # 找到一步有效晃动退出
-                    if Likelihood_result_out > Likelihood_x0_out:
-                        x0_out[1:] = result_out
-                        Likelihood_x0_out = Likelihood_result_out
-                        break
-                        
-            E_out = LH.Likelihood(x0_out[1:],
-                *(PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart),
-                expect = True)
+            # 进行MCMC晃动
+            for mcstep in range(MC_step):
+                x0_out[1:], Likelihood_x0_out = mcmc(x0_out[1:], event_parameter)
+            E_out = LH.Likelihood(x0_out[1:], *event_parameter, expect = True)
             
             reconmcmc['EventID'] = sid
             reconmcmc['step'] = step
@@ -141,12 +114,6 @@ def Recon(filename, output):
             reconout['E'] = E_out
             reconout['x'], reconout['y'], reconout['z'] = x0_out[1:4]*shell
             reconout['Likelihood'] = Likelihood_x0_out
-
-            # print recon result
-            #print('-'*60)
-            #print('%d %d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-            #    % (sid, step, reconmcmc['x'], reconmcmc['y'], reconmcmc['z'], 
-            #        np.sqrt(reconmcmc['x']**2 + reconmcmc['y']**2 + reconmcmc['z']**2), reconmcmc['E'], reconmcmc['Likelihood']))
 
             reconwa.append()
             reconin.append()
@@ -184,7 +151,6 @@ parser.add_argument('--event', dest='event', type=int, default=None,
 args = parser.parse_args()
 
 PMT_pos = np.loadtxt(args.PMT)
-
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
 cart = RZern(30)
 if pe_type=='Zernike':
@@ -195,5 +161,19 @@ elif pe_type == 'Legendre':
     LH = pub.LH_Leg
     MeshIn = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 30))
     MeshOut = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.92, 1, 30))
+
+def mcmc(init, parameter):
+    Likelihood_init = LH.Likelihood(init, *parameter, expect = False)
+    for iter in range(MC_maxfind):
+        result = perturbation(init)
+        # 判断是否超出边界
+        if np.sum(result[0:3] ** 2) >= np.square(1):
+            continue
+        else:
+            Likelihood_result = LH.Likelihood(result, *parameter, expect = False)
+            # 找到一步有效晃动退出
+            if Likelihood_result > Likelihood_init:
+                return result, Likelihood_result
+    return init, Likelihood_init
 
 Recon(args.filename, args.output)
