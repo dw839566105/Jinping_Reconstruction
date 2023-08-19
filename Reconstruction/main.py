@@ -61,6 +61,9 @@ def Recon(filename, output):
         x0_in = pub.Initial.FitGrid(pe_array_init, MeshIn.mesh, MeshIn.tpl, time_array_init)
         x0_out = pub.Initial.FitGrid(pe_array_init, MeshOut.mesh, MeshOut.tpl, time_array_init)
 
+        reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in # x,y,z是归一化距离
+        reconwa['EventID'] = sid
+
         for step, group_step in group_eid.groupby("step"):
             fired_PMT = group_step["ch"].values
             time_array = group_step["PEt"].values
@@ -71,54 +74,40 @@ def Recon(filename, output):
             
             event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
 
-            ############################################################################
-            ###############               inner recon                  #################
-            ############################################################################
-            reconwa['step'] = step
-            reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in # x,y,z是归一化距离
-            reconwa['EventID'] = sid
-
             # 进行MCMC晃动
-            for mcstep in range(MC_step):
+            for recon_step in range(MC_step):
                 x0_in[1:], Likelihood_x0_in = mcmc(x0_in[1:], event_parameter)
-            E_in = LH.Likelihood(x0_in[1:], *event_parameter, expect = True)
-            
-            ############################################################################
-            ###############               outer recon                  #################
-            ############################################################################
-
-            # 进行MCMC晃动
-            for mcstep in range(MC_step):
                 x0_out[1:], Likelihood_x0_out = mcmc(x0_out[1:], event_parameter)
-            E_out = LH.Likelihood(x0_out[1:], *event_parameter, expect = True)
-            
-            reconmcmc['EventID'] = sid
-            reconmcmc['step'] = step
-            if Likelihood_x0_out > Likelihood_x0_in:
-                reconmcmc['E'] = E_out
-                reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_out[1:4]*shell
-                reconmcmc['Likelihood'] = Likelihood_x0_out
-            else:
-                reconmcmc['E'] = E_in
-                reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_in[1:4]*shell
-                reconmcmc['Likelihood'] = Likelihood_x0_in        
-            
-            # 记录 reconin 和 reconout （用来比较收敛性，后续删去）
-            reconin['EventID'] = sid
-            reconin['step'] = step
-            reconin['E'] = E_in
-            reconin['x'], reconin['y'], reconin['z'] = x0_in[1:4]*shell
-            reconin['Likelihood'] = Likelihood_x0_in
-            reconout['EventID'] = sid
-            reconout['step'] = step
-            reconout['E'] = E_out
-            reconout['x'], reconout['y'], reconout['z'] = x0_out[1:4]*shell
-            reconout['Likelihood'] = Likelihood_x0_out
+                E_in = LH.Likelihood(x0_in[1:], *event_parameter, expect = True)
+                E_out = LH.Likelihood(x0_out[1:], *event_parameter, expect = True)
 
-            reconwa.append()
-            reconin.append()
-            reconout.append()
-            reconmcmc.append()
+                reconmcmc['EventID'] = sid
+                reconmcmc['step'] = recon_step
+                if Likelihood_x0_out > Likelihood_x0_in:
+                    reconmcmc['E'] = E_out
+                    reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_out[1:4]*shell
+                    reconmcmc['Likelihood'] = Likelihood_x0_out
+                else:
+                    reconmcmc['E'] = E_in
+                    reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_in[1:4]*shell
+                    reconmcmc['Likelihood'] = Likelihood_x0_in        
+                
+                # 记录 reconin 和 reconout （用来比较收敛性，后续删去）
+                reconin['EventID'] = sid
+                reconin['step'] = recon_step
+                reconin['E'] = E_in
+                reconin['x'], reconin['y'], reconin['z'] = x0_in[1:4]*shell
+                reconin['Likelihood'] = Likelihood_x0_in
+                reconout['EventID'] = sid
+                reconout['step'] = recon_step
+                reconout['E'] = E_out
+                reconout['x'], reconout['y'], reconout['z'] = x0_out[1:4]*shell
+                reconout['Likelihood'] = Likelihood_x0_out
+
+                reconwa.append()
+                reconin.append()
+                reconout.append()
+                reconmcmc.append()
 
     # Flush into the output file
     ReconWATable.flush() # reconin 的电荷重心法初值
@@ -164,16 +153,15 @@ elif pe_type == 'Legendre':
 
 def mcmc(init, parameter):
     Likelihood_init = LH.Likelihood(init, *parameter, expect = False)
-    for iter in range(MC_maxfind):
-        result = perturbation(init)
-        # 判断是否超出边界
-        if np.sum(result[0:3] ** 2) >= np.square(1):
-            continue
-        else:
-            Likelihood_result = LH.Likelihood(result, *parameter, expect = False)
-            # 找到一步有效晃动退出
-            if Likelihood_result > Likelihood_init:
-                return result, Likelihood_result
+    result = perturbation(init)
+    # 判断是否超出边界
+    if np.sum(result[0:3] ** 2) >= np.square(1):
+        return init, Likelihood_init
+    else:
+        Likelihood_result = LH.Likelihood(result, *parameter, expect = False)
+        # 通过似然函数判断晃动是否有效
+        if Likelihood_result > Likelihood_init:
+            return result, Likelihood_result
     return init, Likelihood_init
 
 Recon(args.filename, args.output)

@@ -16,11 +16,11 @@ args = psr.parse_args()
 with h5py.File(args.ipt, "r") as recon:
     reconin = pd.DataFrame(recon['ReconIn'][:])
     reconout = pd.DataFrame(recon['ReconOut'][:])
-    reconwa = pd.DataFrame(recon['ReconWA'][:])
+    reconwa = pd.DataFrame(recon['ReconWA'][:]).loc[0]
     reconmcmc = pd.DataFrame(recon['ReconMCMC'][:])
 r_reconin = np.sqrt(reconin['x'].values ** 2 + reconin['y'].values ** 2 + reconin['z'].values ** 2)
 r_reconout = np.sqrt(reconout['x'].values ** 2 + reconout['y'].values ** 2 + reconout['z'].values ** 2)
-r_reconwa = np.sqrt(reconwa['x'].values ** 2 + reconwa['y'].values ** 2 + reconwa['z'].values ** 2) * 0.65
+r_reconwa = np.sqrt(reconwa['x'] ** 2 + reconwa['y'] ** 2 + reconwa['z'] ** 2) * 0.65
 r_reconmcmc = np.sqrt(reconmcmc['x'].values ** 2 + reconmcmc['y'].values ** 2 + reconmcmc['z'].values ** 2)
 
 with PdfPages(args.opt) as pp:
@@ -40,6 +40,9 @@ with PdfPages(args.opt) as pp:
     ax23 = fig23.add_subplot(1,1,1)
     fig24 = plt.figure()
     ax24 = fig24.add_subplot(1,1,1)
+
+    # energy_bin = np.linspace(0,0.2,20)
+
     ax1.hist(reconin['E'].values, bins = 50)
     ax2.hist(reconout['E'].values, bins = 50)
     ax3.hist(reconwa['E'], bins = 50)
@@ -54,7 +57,7 @@ with PdfPages(args.opt) as pp:
     ax1.set_ylabel('steps')
     ax2.set_title('Energy Distribution (reconout)')
     ax2.set_xlabel('Energy / MeV')
-    ax2.set_ylabel('Events')
+    ax2.set_ylabel('steps')
     ax3.set_title('Energy Distribution (reconwa)')
     ax3.set_xlabel('Energy / MeV')
     ax3.set_ylabel('steps')
