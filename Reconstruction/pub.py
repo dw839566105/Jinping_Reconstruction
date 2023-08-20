@@ -73,8 +73,8 @@ class LH_Zer:
         if rho > 1-1e-3:
             rho = 1-1e-3
         # calculate cos theta
+        theta = np.arctan2(np.linalg.norm(np.cross(v, PMT_pos), axis=1), np.dot(v,PMT_pos.T))
         cos_theta = np.dot(v, PMT_pos.T) / (np.linalg.norm(v)*np.linalg.norm(PMT_pos,axis=1))
-        cos_theta = np.nan_to_num(cos_theta)
         theta = np.arccos(cos_theta)
         # Generate Zernike basis
         rho = rho + np.zeros(len(PMT_pos))
@@ -104,7 +104,7 @@ class LH_Zer:
         # Recover coefficient
         T_i = np.matmul(basis_time, coeff_time)
         T_i = T_i + T0
-        lnL = np.nansum(LH.Likelihood_quantile(time_array, T_i, 0.1, 3))
+        lnL = LH.Likelihood_quantile(time_array, T_i, 0.1, 3)
         return lnL.sum()
 
 
@@ -149,10 +149,8 @@ class LH_Leg:
         rho = np.linalg.norm(v)
         rho = np.clip(rho, 0, 1)
         # calculate cos theta
-        cos_theta = np.dot(v, PMT_pos.T) / (np.linalg.norm(v)*np.linalg.norm(PMT_pos,axis=1))
-        cos_theta = np.nan_to_num(cos_theta)
+        cos_theta = np.cos(np.arctan2(np.linalg.norm(np.cross(v, PMT_pos), axis=1), np.dot(v,PMT_pos.T)))
         rhof = rho + np.zeros(len(PMT_pos))
-        
         base_t = legval(cos_theta, len1)
         base_r = legval(rhof, len2)
         return base_r, base_t
@@ -265,7 +263,7 @@ class Initial:
         vertex = np.zeros(5)
         scale = np.sum(tpl, axis=1)/np.sum(pe_array)
         tpl /= np.atleast_2d(scale).T
-        L = -np.nansum(-tpl + np.log(tpl)*pe_array, axis=1)
+        L = -np.sum(-tpl + np.log(tpl)*pe_array, axis=1)
         index = np.where(L == np.min(L))[0][0]
         
         x_ini = mesh[index]
@@ -281,7 +279,7 @@ class Initial:
         vertex = np.zeros(5)
         scale = np.sum(tpl, axis=1)/np.sum(pe_array) # fit energy
         tpl /= np.atleast_2d(scale).T
-        L = -np.nansum(-tpl + np.log(tpl)*pe_array, axis=1) # pe likelihood
+        L = -np.sum(-tpl + np.log(tpl)*pe_array, axis=1) # pe likelihood
         index = np.argmin(L) # min position
 
         x_ini = mesh[index]
