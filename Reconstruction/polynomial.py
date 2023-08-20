@@ -11,25 +11,6 @@ def legval(x, n):
     return res
 
 @njit
-def legval_raw(x, c):
-    if len(c) == 1:
-        return c[0]
-    elif len(c) == 2:
-        c0 = c[0]
-        c1 = c[1]
-    else:
-        nd = len(c)
-        c0 = c[-2]
-        c1 = c[-1]
-        for i in range(3, len(c) + 1):
-            tmp = c0
-            nd = nd - 1
-            c0 = c[-i] - (c1*(nd - 1))/nd
-            c1 = tmp + (c1*x*(2*nd - 1))/nd
-    return c0 + c1*x
-
-
-@njit
 def polyval(p, x):
     y = np.zeros((p.shape[1], x.shape[0]))
     for i in range(len(p)):

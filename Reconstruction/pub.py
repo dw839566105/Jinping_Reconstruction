@@ -23,15 +23,6 @@ class load_coeff:
             coeff_time = h.root.coeff[:]
             time_type = h.root.coeff.attrs['type']
         return coeff_pe, coeff_time, pe_type, time_type
-    
-    def load_coeff_Probe(File = '/mnt/stage/probe/unbinned/ode/shrink/0-240.h5'):
-        with h5py.File(File, "r") as ipt:
-            for key in ipt.keys(): # enum all keys
-                coeff = ipt[key]
-            t_min = coeff.attrs['t_min']
-            t_max = coeff.attrs['t_max']
-            coef = coeff[()]
-        return coef, t_min, t_max
 
 def r2c(c):
     # coordinate transformation
@@ -87,7 +78,7 @@ class LH_Zer:
         expect = np.exp(np.matmul(basis, coeff_pe))
 
         # Energy fit
-        nml = np.sum(pe_array)/np.sum(expect)
+        nml = np.sum(pe_array) / np.sum(expect)
         expect *= nml
 
         # Poisson likelihood of Bayesian Network
@@ -141,7 +132,7 @@ class LH_Leg:
                 base_t[:coeff_time.shape[0], fired_PMT],
                 vertex[-1], 
                 time_array, coeff_time)
-            return L1 + L2
+            return L1
 
     def Calc_basis(vertex, PMT_pos, len1, len2): 
         # boundary
