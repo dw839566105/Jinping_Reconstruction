@@ -124,15 +124,26 @@ class LH_Leg:
         vertex[3]: phi
         '''
         PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart = args
-        rho, basis = LH_Leg.Calc_basis(vertex, PMT_pos, coeff_pe)
-        L1, energy = LH_Leg.Likelihood_PE(rho, basis, pe_array, coeff_pe)
+        base_r, base_t = LH_Leg.Calc_basis(vertex, PMT_pos, 
+            np.max([coeff_pe.shape[0], coeff_time.shape[0]]),
+            np.max([coeff_pe.shape[1], coeff_time.shape[1]]),)
+
+        L1, energy = LH_Leg.Likelihood_PE(
+            base_r[:coeff_pe.shape[1]], 
+            base_t[:coeff_pe.shape[0]], 
+            pe_array, coeff_pe)
+
         if expect:
             return energy
         else:
-            L2 = LH_Leg.Likelihood_Time(rho, basis, vertex[-1], fired_PMT, time_array, coeff_time)
-            return L1
+            L2 = LH_Leg.Likelihood_Time(
+                base_r[:coeff_time.shape[1], fired_PMT], 
+                base_t[:coeff_time.shape[0], fired_PMT],
+                vertex[-1], 
+                time_array, coeff_time)
+            return L1 + L2
 
-    def Calc_basis(vertex, PMT_pos, coef): 
+    def Calc_basis(vertex, PMT_pos, len1, len2): 
         # boundary
         v = vertex[:3]
         rho = np.linalg.norm(v)
@@ -140,14 +151,15 @@ class LH_Leg:
         # calculate cos theta
         cos_theta = np.dot(v, PMT_pos.T) / (np.linalg.norm(v)*np.linalg.norm(PMT_pos,axis=1))
         cos_theta = np.nan_to_num(cos_theta)
-        cut = len(coef)
-        t_basis = legval(cos_theta, len(coef)).T
-        return rho, t_basis
+        rhof = rho + np.zeros(len(PMT_pos))
+        
+        base_t = legval(cos_theta, len1)
+        base_r = legval(rhof, len2)
+        return base_r, base_t
 
-    def Likelihood_PE(rho, t_basis, pe_array, coef):
-        rhof = rho + np.zeros_like(pe_array)
-        r_basis = legval_raw(rhof, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
-        expect = np.exp((t_basis*r_basis).sum(-1))
+    def Likelihood_PE(base_r, base_t, pe_array, coef):
+        base = (base_t.T @ coef * base_r.T).sum(1)
+        expect = np.exp(base)
 
         # Energy fit
         nml = np.sum(pe_array)/np.sum(expect)
@@ -162,13 +174,9 @@ class LH_Leg:
         return lnL.sum(), nml
 
 
-    def Likelihood_Time(rho, t_basis, T0, fired_PMT, time_array, coef):
-        rhof = rho + np.zeros_like(fired_PMT)
-        basis_time = t_basis[fired_PMT]
-        r_basis = legval_raw(rhof, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
-        T_i = (t_basis[fired_PMT, :coef.shape[0]]*r_basis).sum(-1)
-        T_i = T_i + T0
-        lnL = np.nansum(LH_Leg.Likelihood_quantile(time_array, T_i, 0.1, 3))
+    def Likelihood_Time(base_r, base_t, T0, time_array, coef):
+        T_i = (base_t.T @ coef * base_r.T).sum(1) + T0
+        lnL = LH_Leg.Likelihood_quantile(time_array, T_i, 0.1, 3)
         return lnL.sum()
 
 
@@ -236,9 +244,9 @@ class construct_Leg:
             vertex = mesh[i]
             cos_theta = np.sum(vertex*PMT_pos, axis=1)/np.linalg.norm(vertex)/np.linalg.norm(PMT_pos, axis=1)
             rhof = np.linalg.norm(vertex) + np.zeros(len(PMT_pos))
-            r_basis = legval_raw(rhof, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
-            t_basis = legval(cos_theta, len(coef)).T
-            expect = np.exp((t_basis*r_basis).sum(-1))
+            base1 = legval(rhof, coef.shape[1])
+            base2 = legval(cos_theta, coef.shape[0])
+            expect = np.exp((base2.T @ coef * base1.T).sum(1))
             tpl[i] = expect
         return tpl
                  
