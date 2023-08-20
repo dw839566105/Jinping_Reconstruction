@@ -141,7 +141,7 @@ class LH_Leg:
         cos_theta = np.dot(v, PMT_pos.T) / (np.linalg.norm(v)*np.linalg.norm(PMT_pos,axis=1))
         cos_theta = np.nan_to_num(cos_theta)
         cut = len(coef)
-        t_basis = legval_raw(cos_theta, np.eye(cut).reshape((cut,cut,1))).T
+        t_basis = legval(cos_theta, len(coef)).T
         return rho, t_basis
 
     def Likelihood_PE(rho, t_basis, pe_array, coef):
@@ -237,7 +237,7 @@ class construct_Leg:
             cos_theta = np.sum(vertex*PMT_pos, axis=1)/np.linalg.norm(vertex)/np.linalg.norm(PMT_pos, axis=1)
             rhof = np.linalg.norm(vertex) + np.zeros(len(PMT_pos))
             r_basis = legval_raw(rhof, coef.T.reshape(coef.shape[1], coef.shape[0],1)).T
-            t_basis = legval_raw(cos_theta, np.eye(cut).reshape((cut,cut,1))).T
+            t_basis = legval(cos_theta, len(coef)).T
             expect = np.exp((t_basis*r_basis).sum(-1))
             tpl[i] = expect
         return tpl
