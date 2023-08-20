@@ -7,7 +7,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 from scipy.optimize import minimize
 from zernike import RZern
-import pub_close as pub
+import pub
 import warnings
 warnings.filterwarnings('ignore')
 np.set_printoptions(precision=3, suppress=True)
