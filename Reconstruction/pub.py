@@ -115,9 +115,19 @@ class LH_Leg:
         vertex[3]: phi
         '''
         PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart = args
-        base_r, base_t = LH_Leg.Calc_basis(vertex, PMT_pos, 
+        
+        # boundary
+        v = vertex[:3]
+        rho = np.linalg.norm(v)
+        rho = np.clip(rho, 0, 1)
+
+        # calculate cos theta
+        cos_theta = np.cos(np.arctan2(np.linalg.norm(np.cross(v, PMT_pos), axis=1), np.dot(v,PMT_pos.T)))
+        rhof = rho + np.zeros(len(PMT_pos))
+        
+        base_r, base_t = LH_Leg.Calc_basis(rhof, cos_theta, 
             np.max([coeff_pe.shape[0], coeff_time.shape[0]]),
-            np.max([coeff_pe.shape[1], coeff_time.shape[1]]),)
+            np.max([coeff_pe.shape[1], coeff_time.shape[1]]))
 
         L1, energy = LH_Leg.Likelihood_PE(
             base_r[:coeff_pe.shape[1]], 
@@ -134,14 +144,7 @@ class LH_Leg:
                 time_array, coeff_time)
             return L1
 
-    def Calc_basis(vertex, PMT_pos, len1, len2): 
-        # boundary
-        v = vertex[:3]
-        rho = np.linalg.norm(v)
-        rho = np.clip(rho, 0, 1)
-        # calculate cos theta
-        cos_theta = np.cos(np.arctan2(np.linalg.norm(np.cross(v, PMT_pos), axis=1), np.dot(v,PMT_pos.T)))
-        rhof = rho + np.zeros(len(PMT_pos))
+    def Calc_basis(rhof, cos_theta, len1, len2): 
         base_t = legval(cos_theta, len1)
         base_r = legval(rhof, len2)
         return base_r, base_t
