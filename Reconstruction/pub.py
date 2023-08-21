@@ -123,9 +123,8 @@ class LH_Leg:
 
         # calculate cos theta
         cos_theta = np.cos(np.arctan2(np.linalg.norm(np.cross(v, PMT_pos), axis=1), np.dot(v,PMT_pos.T)))
-        rhof = rho + np.zeros(len(PMT_pos))
         
-        base_r, base_t = LH_Leg.Calc_basis(rhof, cos_theta, 
+        base_r, base_t = LH_Leg.Calc_basis(rho, cos_theta, 
             np.max([coeff_pe.shape[0], coeff_time.shape[0]]),
             np.max([coeff_pe.shape[1], coeff_time.shape[1]]))
 
@@ -138,19 +137,19 @@ class LH_Leg:
             return energy
         else:
             L2 = LH_Leg.Likelihood_Time(
-                base_r[:coeff_time.shape[1], fired_PMT], 
+                base_r[:coeff_time.shape[1]], 
                 base_t[:coeff_time.shape[0], fired_PMT],
                 vertex[-1], 
                 time_array, coeff_time)
             return L1
 
-    def Calc_basis(rhof, cos_theta, len1, len2): 
+    def Calc_basis(rho, cos_theta, len1, len2): 
         base_t = legval(cos_theta, len1)
-        base_r = legval(rhof, len2)
+        base_r = legval(np.array([rho,]), len2).flatten()
         return base_r, base_t
 
     def Likelihood_PE(base_r, base_t, pe_array, coef):
-        base = (base_t.T @ coef * base_r.T).sum(1)
+        base = base_t.T @ coef @ base_r
         expect = np.exp(base)
 
         # Energy fit
@@ -167,7 +166,7 @@ class LH_Leg:
 
 
     def Likelihood_Time(base_r, base_t, T0, time_array, coef):
-        T_i = (base_t.T @ coef * base_r.T).sum(1) + T0
+        T_i = base_t.T @ coef @ base_r + T0
         lnL = LH_Leg.Likelihood_quantile(time_array, T_i, 0.1, 3)
         return lnL.sum()
 
