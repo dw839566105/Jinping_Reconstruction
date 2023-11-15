@@ -36,7 +36,6 @@ with PdfPages('Recon_h.pdf') as pp:
         for radius in np.arange(0.01, 0.65, 0.01):
             with tables.open_file('%s/%.2f.h5' % (path, radius)) as h:
                 v = tract(h)
-                h.close()
             if axis == 'x':
                 col = int(0)
             elif axis == 'z':

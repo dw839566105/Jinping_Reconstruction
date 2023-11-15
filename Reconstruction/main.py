@@ -141,7 +141,7 @@ args = parser.parse_args()
 
 PMT_pos = np.loadtxt(args.PMT)
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
-cart = RZern(30)
+cart = None
 if pe_type=='Zernike':
     LH = pub.LH_Zer
     MeshIn = pub.construct_Zer(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 3), cart)

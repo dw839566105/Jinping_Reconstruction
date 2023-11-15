@@ -1,6 +1,6 @@
 # Jinping reconstruction package
 
-This is Jinping reconstruction package, you need to install *Jinping Simulation and Analysis Package* (JSAP) including its converter first. JSAP code is located at (https://gitlab.airelinux.org/tjjk/jsap). If you do not have the access, please contact orv.tsinghua.edu.cn.
+This is Jinping reconstruction package, you need to install *Jinping Simulation and Analysis Package* (JSAP) including its converter first. JSAP code is located at (https://gitlab.airelinux.org/tjjk/jsap). If you do not have the access, please contact Benda Xu <orv AT tsinghua.edu.cn>.
 
 ## Code structure
 The reconstruction flow is controlled by the `Makefile`.

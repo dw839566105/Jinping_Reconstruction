@@ -32,10 +32,9 @@ def angular(m, theta):
     return np.cos(m.reshape(-1, 1) * theta)
 
 def loadh5(filename):
-    h = tables.open_file(filename)
-    coef_ = h.root.coeff[:]
-    coef_type = h.root.coeff.attrs.type
-    h.close()
+    with tables.open_file(filename) as h:
+        coef_ = h.root.coeff[:]
+        coef_type = h.root.coeff.attrs.type
     return coef_, coef_type
 
 def calc(xx, yy, theta):
@@ -385,10 +384,8 @@ with PdfPages('equiv.pdf') as pdf:
                 filename = '/home/douwei/Sim/Sim1/coeff_old1/%.2f/%.2f/coeff.h5' % (idx, ra)
             coef_PE, coef_type = loadh5(filename)
 
-            h = tables.open_file(filename)
-            coeff = h.root.coeff[:]
-            h.close()
-
+            with tables.open_file(filename) as h:
+                coeff = h.root.coeff[:]
 
             probe = np.matmul((zs_radial * zs_angulars).T, coeff[:121])
             data = np.exp(probe).reshape(rr.shape)

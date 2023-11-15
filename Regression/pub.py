@@ -7,15 +7,7 @@ def ReadJPPMT(file=r"./PMT.txt"):
     # Read PMT position
     # output: 2d PMT position 30*3 (x, y, z)
     '''
-    f = open(file)
-    line = f.readline()
-    data_list = [] 
-    while line:
-        num = list(map(float,line.split()))
-        data_list.append(num)
-        line = f.readline()
-    f.close()
-    PMT_pos = np.array(data_list)
+    PMT_pos = np.loadtxt(file)
     return PMT_pos
 
 @jit(nopython=True)

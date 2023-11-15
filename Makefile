@@ -24,7 +24,7 @@ ball: $(duplicate:%=$(path)/root/ball/$(energy)/%.root)
 ball_v: $(duplicate_v:%=$(path)/root/ball/$(energy)/%.root)
 vset:=$(duplicate_v:%=$(path)/concat/ball/$(energy)/%.h5)
 
-recon_shell: $(scan:%=$(path)/recon/shell/$(energy)/%.h5)
+recon_shell: $(scan_compact:%=$(path)/recon/shell/$(energy)/%.h5)
 recon_x: $(scan:%=$(path)/recon/point/x/$(energy)/%.h5)
 recon_y: $(scan:%=$(path)/recon/point/y/$(energy)/%.h5)
 recon_z: $(scan:%=$(path)/recon/point/z/$(energy)/%.h5)
@@ -52,9 +52,9 @@ coeff_PE_temp:=coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=coeff/Legendre/Gather/Time/2/80/10.h5
 Reconresult/%.h5: PE/%.pq $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-#	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 #	单事例检验收敛性
-	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ --event 3236868 > $@.log
+#	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ --event 3236868 > $@.log
 
 Fig/events/%.pdf: Reconresult/%.h5
 	mkdir -p $(dir $@)
