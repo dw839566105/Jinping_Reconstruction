@@ -4,13 +4,15 @@ from polynomial import *
 
 class Recon(tables.IsDescription):
     EventID = tables.Int64Col(pos=0)    # EventNo
-    step = tables.Int64Col(pos=1)       # step
-    x = tables.Float16Col(pos=2)        # x position
-    y = tables.Float16Col(pos=3)        # y position
-    z = tables.Float16Col(pos=4)        # z position
-    E = tables.Float16Col(pos=5)        # Energy
-    t = tables.Float16Col(pos=6)        # time
-    Likelihood = tables.Float16Col(pos=7)
+    wavestep = tables.Int64Col(pos=1)       # wave step
+    reconstep = tables.Int64Col(pos=2)       # recon step
+    x = tables.Float16Col(pos=3)        # x position
+    y = tables.Float16Col(pos=4)        # y position
+    z = tables.Float16Col(pos=5)        # z position
+    E = tables.Float16Col(pos=6)        # Energy
+    t = tables.Float16Col(pos=7)        # time
+    Likelihood = tables.Float16Col(pos=8)
+    count = tables.Int64Col(pos=9)
 
 class load_coeff:
     def load_coeff_Single(PEFile, TimeFile):

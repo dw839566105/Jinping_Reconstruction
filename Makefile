@@ -50,11 +50,11 @@ coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Lege
 ################# Reconstruction ############################
 coeff_PE_temp:=coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=coeff/Legendre/Gather/Time/2/80/10.h5
-Reconresult/%.h5: PE/%.pq $(coeff_PE_temp) $(coeff_time_temp)
+Reconresult/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+#	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 #	单事例检验收敛性
-#	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ --event 3236868 > $@.log
+	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ --event 848295 > $@.log
 
 Fig/events/%.pdf: Reconresult/%.h5
 	mkdir -p $(dir $@)

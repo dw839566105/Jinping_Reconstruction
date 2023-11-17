@@ -16,15 +16,13 @@ np.set_printoptions(precision=3, suppress=True)
 shell = 0.65
 Gain = 164
 sigma = 40
-MC_step = 5 # 进行有效 mcmc 晃动步数
-MC_maxfind = 1000 # 寻找一步有效 mcmc 晃动时执行的最多步数
-
+MC_step = 10 # 进行 mcmc 晃动步数，后续根据 Gelman-Rubin 确定
 
 def Recon(filename, output):
     '''
     reconstruction
 
-    filename: root reference file
+    filename: parquet reference file
     output: output file
     '''
 
@@ -33,18 +31,10 @@ def Recon(filename, output):
                             filters = tables.Filters(complevel=9))
     group = "/"
     # Create tables
-    ReconWATable = h5file.create_table(group, "ReconWA", pub.Recon, "Recon")
-    reconwa = ReconWATable.row
-    # 暂时把 reconin 和 reconout 记录下来。（用来比较收敛性，后续删去）
-    ReconInTable = h5file.create_table(group, "ReconIn", pub.Recon, "Recon")
-    reconin = ReconInTable.row
-    ReconOutTable = h5file.create_table(group, "ReconOut", pub.Recon, "Recon")
-    reconout = ReconOutTable.row
-    ReconMCMCTable = h5file.create_table(group, "ReconMCMC", pub.Recon, "Recon")
-    reconmcmc = ReconMCMCTable.row
+    ReconTable = h5file.create_table(group, "Recon", pub.Recon, "Recon")
+    recon = ReconTable.row
     # Loop for event
     f = pq.read_table(filename).to_pandas()
-    f = f[f['step'] > 2500] # burn 前 2500 步
 
     # single event test
     if args.event:
@@ -52,73 +42,51 @@ def Recon(filename, output):
 
     grouped = f.groupby("eid")
     for sid, group_eid in grouped:
-        # 电荷重心法给出每个事例初值
-        minstep = np.min(group_eid["step"].values)
-        condition = (group_eid['step'] == minstep)
-        fired_PMT_init = group_eid[condition]["ch"].values
-        time_array_init = group_eid[condition]["PEt"].values
-        pe_array_init, cid = np.histogram(fired_PMT_init, bins=np.arange(len(PMT_pos)+1))
-        x0_in = pub.Initial.FitGrid(pe_array_init, MeshIn.mesh, MeshIn.tpl, time_array_init)
-        x0_out = pub.Initial.FitGrid(pe_array_init, MeshOut.mesh, MeshOut.tpl, time_array_init)
-
-        reconwa['E'], reconwa['x'], reconwa['y'], reconwa['z'], reconwa['t'] = x0_in # x,y,z是归一化距离
-        reconwa['EventID'] = sid
-
         for step, group_step in group_eid.groupby("step"):
+            # 初值为探测器中央
+            x0 = np.array([0, 0 ,0 ,0])
             fired_PMT = group_step["ch"].values
             time_array = group_step["PEt"].values
-            pe_array, cid = np.histogram(fired_PMT, bins=np.arange(len(PMT_pos)+1))
-
-            if np.sum(pe_array)==0:
-                continue
-            
+            pe_array = group_step['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0)        
             event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
+            Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
+            E0 = LH.Likelihood(x0, *event_parameter, expect = True)
 
             # 进行MCMC晃动
             for recon_step in range(MC_step):
-                x0_in[1:], Likelihood_x0_in = mcmc(x0_in[1:], event_parameter)
-                x0_out[1:], Likelihood_x0_out = mcmc(x0_out[1:], event_parameter)
-                E_in = LH.Likelihood(x0_in[1:], *event_parameter, expect = True)
-                E_out = LH.Likelihood(x0_out[1:], *event_parameter, expect = True)
+                x1, Likelihood_x1 = mcmc(x0, event_parameter)
+                E1 = LH.Likelihood(x1, *event_parameter, expect = True)
+                np.random.seed(recon_step)
+                u = np.random.uniform(0,1)
 
-                reconmcmc['EventID'] = sid
-                reconmcmc['step'] = recon_step
-                if Likelihood_x0_out > Likelihood_x0_in:
-                    reconmcmc['E'] = E_out
-                    reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_out[1:4]*shell
-                    reconmcmc['Likelihood'] = Likelihood_x0_out
+                recon['EventID'] = sid
+                recon['wavestep'] = step
+                recon['reconstep'] = recon_step
+                recon['count'] = group_step["count"].values[0]
+                if Likelihood_x1 / Likelihood_x0 > u:
+                    recon['E'] = E1
+                    recon['x'], recon['y'], recon['z'] = x1[0:3]*shell
+                    recon['Likelihood'] = Likelihood_x1
                 else:
-                    reconmcmc['E'] = E_in
-                    reconmcmc['x'], reconmcmc['y'], reconmcmc['z'] = x0_in[1:4]*shell
-                    reconmcmc['Likelihood'] = Likelihood_x0_in        
-                
-                # 记录 reconin 和 reconout （用来比较收敛性，后续删去）
-                reconin['EventID'] = sid
-                reconin['step'] = recon_step
-                reconin['E'] = E_in
-                reconin['x'], reconin['y'], reconin['z'] = x0_in[1:4]*shell
-                reconin['Likelihood'] = Likelihood_x0_in
-                reconout['EventID'] = sid
-                reconout['step'] = recon_step
-                reconout['E'] = E_out
-                reconout['x'], reconout['y'], reconout['z'] = x0_out[1:4]*shell
-                reconout['Likelihood'] = Likelihood_x0_out
+                    recon['E'] = E0
+                    recon['x'], recon['y'], recon['z'] = x0[0:3]*shell
+                    recon['Likelihood'] = Likelihood_x0
+            
+                # echo
+                print('-'*60)
+                print('%d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
+                    % (sid, recon['x'], recon['y'], recon['z'], 
+                        np.sqrt(recon['x']**2 + recon['y']**2 + recon['z']**2), recon['E'], recon['Likelihood']))
 
-                reconwa.append()
-                reconin.append()
-                reconout.append()
-                reconmcmc.append()
+                recon.append()
 
     # Flush into the output file
-    ReconWATable.flush() # reconin 的电荷重心法初值
-    ReconInTable.flush() # 初值在全反射区域内得到的重建结果
-    ReconOutTable.flush() # 初值在全反射区域外得到的重建结果
-    ReconMCMCTable.flush() # 重建结果
+    ReconTable.flush() # 重建结果
     h5file.close()
 
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
-parser.add_argument('-f', '--filename', dest='filename', metavar='filename[*.pqf]', type=str,
-                    help='The filename [*Q.pqf] to read')
+parser.add_argument('-f', '--filename', dest='filename', metavar='filename[*.parquet]', type=str,
+                    help='The filename [*Q.parquet] to read')
 
 parser.add_argument('-o', '--output', dest='output', metavar='output[*.h5]', type=str,
                     help='The output filename [*.h5] to save')
@@ -144,12 +112,8 @@ coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFi
 cart = None
 if pe_type=='Zernike':
     LH = pub.LH_Zer
-    MeshIn = pub.construct_Zer(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 3), cart)
-    MeshOut = pub.construct_Zer(coeff_pe, PMT_pos, np.linspace(0.92, 1, 3), cart)
 elif pe_type == 'Legendre':
     LH = pub.LH_Leg
-    MeshIn = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 0.92, 30))
-    MeshOut = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.92, 1, 30))
 
 def mcmc(init, parameter):
     Likelihood_init = LH.Likelihood(init, *parameter, expect = False)
@@ -159,9 +123,6 @@ def mcmc(init, parameter):
         return init, Likelihood_init
     else:
         Likelihood_result = LH.Likelihood(result, *parameter, expect = False)
-        # 通过似然函数判断晃动是否有效
-        if Likelihood_result > Likelihood_init:
-            return result, Likelihood_result
-    return init, Likelihood_init
+        return result, Likelihood_result
 
 Recon(args.filename, args.output)
