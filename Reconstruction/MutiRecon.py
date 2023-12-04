@@ -63,13 +63,12 @@ def Recon(filename, output):
         fired_PMT = max_step["ch"].values
         time_array = max_step["PEt"].values + max_step["offset"].values
         pe_array = np.array(max_step['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0))
-        # reconbc 记录的是归一化的坐标
         reconbc['E'], reconbc['x'], reconbc['y'], reconbc['z'], reconbc['t'] = pub.Initial.FitGrid(pe_array, Mesh.mesh, Mesh.tpl, time_array)
         x0 = np.array([reconbc['x'], reconbc['y'], reconbc['z'], reconbc['t']])
         reconbc['EventID'] = sid
 
         # mcmc 重建, 波形分析返回 2500 step，对应每步进行一次 mcmc 晃动
-        np.random.seed(sid)
+
         grouped = group_eid.groupby(['ch', 'offset'])
         group_reset = grouped.apply(process_group)
         group_reset = group_reset.reset_index(drop=True)
@@ -83,7 +82,7 @@ def Recon(filename, output):
             Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
             E0 = LH.Likelihood(x0, *event_parameter, expect = True)
             #breakpoint()
-            # 进行 MCMC 晃动
+            # 进行 MCMC 晃动，目前为 1 步
             for recon_step in range(MC_step):
                 x1, Likelihood_x1 = mcmc(x0, event_parameter)
                 E1 = LH.Likelihood(x1, *event_parameter, expect = True)
@@ -103,15 +102,6 @@ def Recon(filename, output):
                     recon['t'] = x0[3]
                     recon['Likelihood'] = Likelihood_x0
                 recon.append()
-        # echo
-        print('-'*60)
-        print('%d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-            % (sid, recon['x'], recon['y'], recon['z'], 
-                np.sqrt(recon['x']**2 + recon['y']**2 + recon['z']**2), recon['E'], recon['Likelihood']))
-        print('='*60)
-        print('%d vertex: [%+.2f, %+.2f, %+.2f] radius: %+.2f, energy: %.2f, Likelihood: %+.6f' 
-            % (sid, reconbc['x']*shell, reconbc['y']*shell, reconbc['z']*shell, 
-                np.sqrt(reconbc['x']**2 + reconbc['y']**2 + reconbc['z']**2)*shell, reconbc['E'], reconbc['Likelihood']))
         reconbc.append()
 
     # Flush into the output file
@@ -140,6 +130,9 @@ parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, default
 parser.add_argument('--event', dest='event', type=int, default=None,
                     help='test event')
 
+parser.add_argument('--num', dest='num', type=int, default=10,
+                    help='chain number')
+
 parser.add_argument('--init', dest='init', type=str, default=None,
                     help='init vertex method')
 
@@ -148,12 +141,6 @@ args = parser.parse_args()
 PMT_pos = np.loadtxt(args.PMT)
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
 cart = None
-if pe_type=='Zernike':
-    LH = pub.LH_Zer
-    Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 1, 3))
-elif pe_type == 'Legendre':
-    LH = pub.LH_Leg
-    Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 1, 30))
 
 def mcmc(init, parameter):
     Likelihood_init = LH.Likelihood(init, *parameter, expect = False)
@@ -165,4 +152,17 @@ def mcmc(init, parameter):
         Likelihood_result = LH.Likelihood(result, *parameter, expect = False)
         return result, Likelihood_result
 
-Recon(args.filename, args.output)
+for i in range(args.num):
+    optname = args.output.replace(".h5", f"_{i}.h5")
+    start = 0.01 + i / args.num
+    end = (i + 1) /args.num
+
+    if pe_type=='Zernike':
+        LH = pub.LH_Zer
+        Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(start, end, 3))
+    elif pe_type == 'Legendre':
+        LH = pub.LH_Leg
+        Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(start, end, 30))
+
+    np.random.seed(i)    
+    Recon(args.filename, optname)

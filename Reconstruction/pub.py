@@ -2,17 +2,19 @@ import numpy as np
 import h5py, tables
 from polynomial import *
 
+npe = 100
+
 class Recon(tables.IsDescription):
     EventID = tables.Int64Col(pos=0)    # EventNo
-    wavestep = tables.Int64Col(pos=1)       # wave step
-    reconstep = tables.Int64Col(pos=2)       # recon step
-    x = tables.Float16Col(pos=3)        # x position
-    y = tables.Float16Col(pos=4)        # y position
-    z = tables.Float16Col(pos=5)        # z position
-    E = tables.Float16Col(pos=6)        # Energy
-    t = tables.Float16Col(pos=7)        # time
-    Likelihood = tables.Float16Col(pos=8)
-    count = tables.Int64Col(pos=9)
+    step = tables.Int64Col(pos=1)       # wave step
+    x = tables.Float16Col(pos=2)        # x position
+    y = tables.Float16Col(pos=3)        # y position
+    z = tables.Float16Col(pos=4)        # z position
+    E = tables.Float16Col(pos=5)        # Energy
+    t = tables.Float16Col(pos=6)        # time
+    Likelihood = tables.Float16Col(pos=7)
+    #count = tables.Int64Col(pos=8)
+    #reconstep = tables.Int64Col(pos=9)       # recon step
 
 class load_coeff:
     def load_coeff_Single(PEFile, TimeFile):
@@ -247,7 +249,7 @@ class Initial:
     def ChargeWeighted(pe_array, PMT_pos, time_array):
         vertex = np.zeros(5)
         x_ini = 1.3 * np.sum(np.atleast_2d(pe_array).T*PMT_pos, axis=0) / np.sum(pe_array)
-        E_ini = np.sum(pe_array)/60 # 60 PE/MeV
+        E_ini = np.sum(pe_array) / npe # npe PE/MeV
         t_ini = np.quantile(time_array, 0.1) # quantile 0.1
         vertex[0] = E_ini
         vertex[1:4] = x_ini / 0.65
@@ -262,7 +264,7 @@ class Initial:
         index = np.where(L == np.min(L))[0][0]
         
         x_ini = mesh[index]
-        E_ini = np.sum(pe_array)/60
+        E_ini = np.sum(pe_array) / npe
         t_ini = np.quantile(time_array, 0.1)
         vertex[0] = E_ini
         vertex[1:4] = c2r(x_ini/1000)
@@ -278,7 +280,7 @@ class Initial:
         index = np.argmin(L) # min position
 
         x_ini = mesh[index]
-        E_ini = np.sum(pe_array)/60
+        E_ini = np.sum(pe_array) / npe
         t_ini = np.quantile(time_array, 0.1)
         vertex[0] = E_ini
         vertex[1:4] = x_ini

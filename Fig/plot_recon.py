@@ -14,14 +14,12 @@ psr.add_argument("ipt", type=str, help="input file")
 args = psr.parse_args()
 
 with h5py.File(args.ipt, "r") as recon:
-    reconmcmc = pd.DataFrame(recon['ReconMCMC'][:])
+    reconmcmc = pd.DataFrame(recon['Recon'][:])
 
-energy_mcmc = []
-r_mcmc = []
-grouped = reconmcmc.groupby("EventID")
-for eid, group_eid in grouped:
-    energy_mcmc.append(np.mean(group_eid['E'].values))
-    r_mcmc.append(np.mean(np.sqrt(group_eid['x'].values ** 2 + group_eid['y'].values ** 2 + group_eid['z'].values ** 2)))
+grouped = reconmcmc.groupby(['EventID', 'wavestep', 'reconstep'])
+for eid, wstep, rstep, group_eid in grouped:
+    energy = group_eid['E'].mean()
+    r = group_eid.apply(lambda row: (row['x']**2 + row['y']**2 + row['z']**2)**0.5, axis=1).mean()
 
 with PdfPages(args.opt) as pp:
     fig1 = plt.figure()
