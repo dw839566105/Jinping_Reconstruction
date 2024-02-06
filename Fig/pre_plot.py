@@ -38,6 +38,9 @@ mcmc = pd.merge(result_mcmc, eids[['EventID', 'particle']], on='EventID', how='i
 bc = pd.merge(result_bc, eids[['EventID', 'particle']], on='EventID', how='inner')
 mcmc['EventID'] = mcmc['EventID'].astype('int')
 bc['EventID'] = bc['EventID'].astype('int')
+
+# print 马尔科夫链接收率
+
 opts = {"compression": "gzip", "shuffle": True}
 with h5py.File(args.opt, "w") as opt:
     opt.create_dataset("mcmc", data=mcmc.to_records(index=False), **opts)

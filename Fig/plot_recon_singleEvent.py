@@ -15,7 +15,7 @@ args = psr.parse_args()
 
 with h5py.File(args.ipt, "r") as recon:
     recon = pd.DataFrame(recon['Recon'][:])
-
+breakpoint()
 with PdfPages(args.opt) as pp:
     for eid in recon['EventID'].unique()[:args.num]:
         data = recon[recon['EventID'] == eid]
@@ -26,6 +26,31 @@ with PdfPages(args.opt) as pp:
         ax.hist(data['E'].values, bins = 100, histtype='step')
         ax.set_title(f'Energy Distribution - Event{eid}')
         ax.set_xlabel('Energy / MeV')
+        ax.set_ylabel('steps')
+        pp.savefig(fig)
+        plt.close(fig)
+
+        # vertex 分布
+        fig, ax = plt.subplots()
+        ax.hist(data['x'].values, bins = 100, histtype='step')
+        ax.set_title(f'x Distribution - Event{eid}')
+        ax.set_xlabel('x / m')
+        ax.set_ylabel('steps')
+        pp.savefig(fig)
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        ax.hist(data['y'].values, bins = 100, histtype='step')
+        ax.set_title(f'y Distribution - Event{eid}')
+        ax.set_xlabel('y / m')
+        ax.set_ylabel('steps')
+        pp.savefig(fig)
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        ax.hist(data['z'].values, bins = 100, histtype='step')
+        ax.set_title(f'z Distribution - Event{eid}')
+        ax.set_xlabel('z / m')
         ax.set_ylabel('steps')
         pp.savefig(fig)
         plt.close(fig)

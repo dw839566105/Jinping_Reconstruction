@@ -52,7 +52,7 @@ coeff_PE_temp:=coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=coeff/Legendre/Gather/Time/2/80/10.h5
 Reconresult/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -n 10 -m 10 -o $@ > $@.log
 
 Reconresult/%_stack.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
@@ -66,15 +66,15 @@ collect/Bi214_0257.csv: collect/00000257.root
 # gelman-rubin 收敛检验
 MutiRecon/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/MutiRecon.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ --num 10 --event 598515
+	time python3 Reconstruction/MutiRecon.py -f $< --pe $(word 2, $^) --event 155 --time $(word 3, $^) -o $@ -n 10 -m 20
 
 Gelman/%.h5: MutiRecon/%*.h5
 	mkdir -p $(dir $@)
-	python3 Gelman/gelman.py -i $^ -o $@
+	python3 Gelman/gelman.py -i $^ -o $@ > $@.log
 
 Gelman/%.parquet: Gelman/%.h5
 	mkdir -p $(dir $@)
-	./Gelman/gelman.R -i $< -o $@
+	./Gelman/gelman.R -i $< -o $@ -n 20
 
 Gelmanget: MutiRecon/0/BiPo/run00002000/1.h5 Gelman/0/BiPo/run00002000/1.h5
 recon257get: Reconresult/0/BiPo/run00000257/0.h5 Reconresult/0/BiPo/run00000257/1.h5 Reconresult/0/BiPo/run00000257/2.h5
@@ -91,11 +91,11 @@ Fig/events/%.pdf: Fig/events/%.h5
 # 单事例不同步骤重建结果分布图
 Fig/steps/%.pdf: Reconresult/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_recon_singleEvent.py $^ -o $@ -n 50
+	python3 Fig/plot_recon_singleEvent.py $^ -o $@ -n 10
 
 Fig/gelman/%.pdf: Gelman/%.parquet
 	mkdir -p $(dir $@)
-	python3 Fig/plot_gelman.py $^ -o $@ -n 50
+	python3 Fig/plot_gelman.py $^ -o $@ -n 1 -m 20
 
 # time profile
 profile/%.stat: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)

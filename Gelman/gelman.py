@@ -17,6 +17,9 @@ for inputf in args.ipt:
     with h5py.File(inputf, "r") as f:
         recon = pd.DataFrame(f["Recon"][:])
         recon = recon.drop('Likelihood', axis=1)
+        acc = recon.groupby('EventID').sum().reset_index()
+        print(acc)
+        recon = recon.drop('accept', axis=1)
         data.append(recon)
 
 merged_df = data[0]

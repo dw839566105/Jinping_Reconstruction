@@ -14,6 +14,7 @@ library(arrow)
 psr <- arg_parser("gelman")
 psr <- add_argument(psr, "--ipt", "FSMP inputs")
 psr <- add_argument(psr, "--opt", "Gelman-Rubin output")
+psr <- add_argument(psr, "--num", "MC step")
 args <- parse_args(psr)
 con <- dbConnect(duckdb::duckdb(), ":memory:")
 
@@ -21,12 +22,14 @@ con <- dbConnect(duckdb::duckdb(), ":memory:")
 file_path <- args$ipt
 recon_data <- h5read(file_path, "/data")
 recon_df <- as.data.frame(recon_data)
+num <- as.numeric(args$num)
+mcstep <- 2500 * num
 
 convergence_result <- recon_df %>%
   group_by(EventID) %>%
   do(
     convergence_v = {
-      lapply(seq(2500, 25000, by = 100), function(i) {
+      lapply(seq(2500, mcstep, by = 100), function(i) {
         gelman.diag(
           mcmc(list(
             mcmc(cbind(.data$x[1:i], .data$y[1:i], .data$z[1:i])), mcmc(cbind(.data$x_2[1:i], .data$y_2[1:i], .data$z_2[1:i])),
@@ -37,11 +40,11 @@ convergence_result <- recon_df %>%
           )),confidence = 0.999,
           autoburnin = FALSE,
           multivariate = TRUE
-        )$psrf
+        )$mpsrf
       })
     },
     convergence_E = {
-      lapply(seq(2500, 25000, by = 100), function(i) {
+      lapply(seq(2500, mcstep, by = 100), function(i) {
         gelman.diag(
           mcmc(list(mcmc(.data$E[1:i]), mcmc(.data$E_2[1:i]), mcmc(.data$E_3[1:i]), mcmc(.data$E_4[1:i]), mcmc(.data$E_5[1:i]), mcmc(.data$E_6[1:i]), mcmc(.data$E_7[1:i]), mcmc(.data$E_8[1:i]), mcmc(.data$E_9[1:i]), mcmc(.data$E_10[1:i]))),
           confidence = 0.999,
@@ -51,7 +54,7 @@ convergence_result <- recon_df %>%
       })  
     },
     convergence_t = {
-      lapply(seq(2500, 25000, by = 100), function(i) {
+      lapply(seq(2500, mcstep, by = 100), function(i) {
         gelman.diag(
           mcmc(list(mcmc(.data$t[1:i]), mcmc(.data$t_2[1:i]), mcmc(.data$t_3[1:i]), mcmc(.data$t_4[1:i]), mcmc(.data$t_5[1:i]), mcmc(.data$t_6[1:i]), mcmc(.data$t_7[1:i]), mcmc(.data$t_8[1:i]), mcmc(.data$t_9[1:i]), mcmc(.data$t_10[1:i]))),
           confidence = 0.999,
