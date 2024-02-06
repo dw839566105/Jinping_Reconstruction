@@ -13,12 +13,6 @@ import warnings
 warnings.filterwarnings('ignore')
 np.set_printoptions(precision=3, suppress=True)
 
-# boundaries
-shell = 0.65
-Gain = 164
-sigma = 40
-MC_step = 10 # 进行 mcmc 晃动步数，后续根据 Gelman-Rubin 确定
-
 def process_group(group):
     '''
     Reset index_step in waveform analysis(FSMP)
@@ -67,7 +61,7 @@ def Recon(filename, output):
         x0 = np.array([reconbc['x'], reconbc['y'], reconbc['z'], reconbc['t']])
         reconbc['EventID'] = sid
 
-        # mcmc 重建, 波形分析返回 2500 step，对应每步进行一次 mcmc 晃动
+        # mcmc 重建, 波形分析返回 2500 step，对应每步进行 MCstep 次 mcmc 晃动
 
         grouped = group_eid.groupby(['ch', 'offset'])
         group_reset = grouped.apply(process_group)
@@ -81,8 +75,8 @@ def Recon(filename, output):
             event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
             Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
             E0 = LH.Likelihood(x0, *event_parameter, expect = True)
-            #breakpoint()
-            # 进行 MCMC 晃动，目前为 1 步
+
+            # 进行 MCMC 晃动
             for recon_step in range(MC_step):
                 x1, Likelihood_x1 = mcmc(x0, event_parameter)
                 E1 = LH.Likelihood(x1, *event_parameter, expect = True)
@@ -90,17 +84,19 @@ def Recon(filename, output):
 
                 recon['EventID'] = sid
                 recon['step'] = step * MC_step + recon_step
-                if Likelihood_x1 / Likelihood_x0 > u:
+                if Likelihood_x1 - Likelihood_x0 > np.log(u):
                     recon['E'] = E1
                     recon['x'], recon['y'], recon['z'] = x1[0:3]*shell
                     recon['t'] = x1[3]
                     recon['Likelihood'] = Likelihood_x1
                     x0 = x1
+                    recon['accept'] = 1
                 else:
                     recon['E'] = E0
                     recon['x'], recon['y'], recon['z'] = x0[0:3]*shell
                     recon['t'] = x0[3]
                     recon['Likelihood'] = Likelihood_x0
+                    recon['accept'] = 0
                 recon.append()
         reconbc.append()
 
@@ -130,14 +126,22 @@ parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, default
 parser.add_argument('--event', dest='event', type=int, default=None,
                     help='test event')
 
-parser.add_argument('--num', dest='num', type=int, default=10,
+parser.add_argument('-n', dest='num', type=int, default=10,
                     help='chain number')
+
+parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10,
+                    help='mcmc step per PEt')
 
 parser.add_argument('--init', dest='init', type=str, default=None,
                     help='init vertex method')
 
 args = parser.parse_args()
 
+# boundaries
+shell = 0.65
+Gain = 164
+sigma = 40
+MC_step = args.MCstep
 PMT_pos = np.loadtxt(args.PMT)
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
 cart = None

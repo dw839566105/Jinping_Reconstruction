@@ -2,7 +2,7 @@ import numpy as np
 import h5py, tables
 from polynomial import *
 
-npe = 100
+npe = 65
 
 class Recon(tables.IsDescription):
     EventID = tables.Int64Col(pos=0)    # EventNo
@@ -13,7 +13,7 @@ class Recon(tables.IsDescription):
     E = tables.Float16Col(pos=5)        # Energy
     t = tables.Float16Col(pos=6)        # time
     Likelihood = tables.Float16Col(pos=7)
-    #count = tables.Int64Col(pos=8)
+    accept = tables.Int64Col(pos=8)
     #reconstep = tables.Int64Col(pos=9)       # recon step
 
 class load_coeff:
@@ -59,7 +59,8 @@ class LH_Zer:
             return energy
         else:
             L2 = LH.Likelihood_Time(basis_time, vertex[-1], fired_PMT, time_array, coeff_time)
-            return L1 + L2
+            # return L1 + L2
+            return L1
 
     def Calc_basis(vertex, PMT_pos, cart): 
         # boundary
@@ -248,7 +249,7 @@ class construct_Leg:
 class Initial:
     def ChargeWeighted(pe_array, PMT_pos, time_array):
         vertex = np.zeros(5)
-        x_ini = 1.3 * np.sum(np.atleast_2d(pe_array).T*PMT_pos, axis=0) / np.sum(pe_array)
+        x_ini = 1.5 * np.sum(np.atleast_2d(pe_array).T*PMT_pos, axis=0) / np.sum(pe_array)
         E_ini = np.sum(pe_array) / npe # npe PE/MeV
         t_ini = np.quantile(time_array, 0.1) # quantile 0.1
         vertex[0] = E_ini
