@@ -18,7 +18,7 @@ eids = pd.read_csv(args.events, sep='\s+', names=("particle", "run", "EventID", 
 eids['particle'] = eids['particle'].replace({'alpha': 0, 'beta': 1})
 eids = eids[['particle', 'EventID']].drop_duplicates()
 
-result_mcmc = pd.DataFrame(columns=['EventID', 'step', 'x', 'y', 'z', 'E', 't', 'Likelihood', 'r', 'xy'])
+result_mcmc = pd.DataFrame(columns=['EventID', 'step', 'x', 'y', 'z', 'E', 't', 'Likelihood', 'r', 'xy', 'std_xy', 'std_z'])
 result_bc = pd.DataFrame(columns=['EventID', 'step', 'x', 'y', 'z', 'E', 't', 'Likelihood', 'r', 'xy'])
 
 for f in args.ipt:
@@ -31,6 +31,9 @@ for f in args.ipt:
         reconbc['xy'] = reconbc['x']**2 + reconbc['y']**2
         recon_data = recon.groupby('EventID').mean().reset_index()
         reconbc_data = reconbc.groupby('EventID').mean().reset_index()
+        std = recon.groupby('EventID').agg({'xy': 'std', 'z': 'std'})
+        std = std.rename(columns={'xy': 'std_xy', 'z': 'std_z'})
+        recon_data = pd.merge(recon_data, std, on='EventID', how='inner')
         result_mcmc = pd.concat([result_mcmc, recon_data])
         result_bc = pd.concat([result_bc, reconbc_data])
 
@@ -38,8 +41,6 @@ mcmc = pd.merge(result_mcmc, eids[['EventID', 'particle']], on='EventID', how='i
 bc = pd.merge(result_bc, eids[['EventID', 'particle']], on='EventID', how='inner')
 mcmc['EventID'] = mcmc['EventID'].astype('int')
 bc['EventID'] = bc['EventID'].astype('int')
-
-# print 马尔科夫链接收率
 
 opts = {"compression": "gzip", "shuffle": True}
 with h5py.File(args.opt, "w") as opt:

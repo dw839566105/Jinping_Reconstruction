@@ -52,11 +52,11 @@ coeff_PE_temp:=coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=coeff/Legendre/Gather/Time/2/80/10.h5
 Reconresult/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -n 10 -m 10 -o $@ > $@.log
+	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -n 1 -m 50 -o $@ > $@.log
 
 Reconresult/%_stack.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/main_stack.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
+	time python3 Reconstruction/main_stack.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -n 10 -m 100000 -o $@ > $@.log
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 collect/Bi214_0257.csv: collect/00000257.root
@@ -66,7 +66,7 @@ collect/Bi214_0257.csv: collect/00000257.root
 # gelman-rubin 收敛检验
 MutiRecon/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/MutiRecon.py -f $< --pe $(word 2, $^) --event 155 --time $(word 3, $^) -o $@ -n 10 -m 20
+	time python3 Reconstruction/MutiRecon.py -f $< --pe $(word 2, $^) --event 248 --time $(word 3, $^) -o $@ -n 10 -m 10
 
 Gelman/%.h5: MutiRecon/%*.h5
 	mkdir -p $(dir $@)
@@ -74,9 +74,9 @@ Gelman/%.h5: MutiRecon/%*.h5
 
 Gelman/%.parquet: Gelman/%.h5
 	mkdir -p $(dir $@)
-	./Gelman/gelman.R -i $< -o $@ -n 20
+	./Gelman/gelman.R -i $< -o $@ -n 10
 
-Gelmanget: MutiRecon/0/BiPo/run00002000/1.h5 Gelman/0/BiPo/run00002000/1.h5
+Gelmanget: MutiRecon/0/BiPo/run00000257/0.h5 Gelman/0/BiPo/run00000257/0.h5
 recon257get: Reconresult/0/BiPo/run00000257/0.h5 Reconresult/0/BiPo/run00000257/1.h5 Reconresult/0/BiPo/run00000257/2.h5
 
 # 能谱和顶点分布
@@ -91,16 +91,16 @@ Fig/events/%.pdf: Fig/events/%.h5
 # 单事例不同步骤重建结果分布图
 Fig/steps/%.pdf: Reconresult/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_recon_singleEvent.py $^ -o $@ -n 10
+	python3 Fig/plot_recon_singleEvent.py $^ -o $@ -n 1
 
 Fig/gelman/%.pdf: Gelman/%.parquet
 	mkdir -p $(dir $@)
-	python3 Fig/plot_gelman.py $^ -o $@ -n 1 -m 20
+	python3 Fig/plot_gelman.py $^ -o $@ -n 1 -m 10
 
 # time profile
 profile/%.stat: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	python3 -m cProfile -o foo_profile.stat Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o profile/$*.h5
+	python3 -m cProfile -o $@ Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o profile/$*.h5
 
 profile/%.svg: profile/%.stat
 	gprof2dot -f pstats $^ | dot -Tsvg -o $@

@@ -1,8 +1,8 @@
 import numpy as np
 
 # 探测器参数
-r_max = 0.1 # 单步距离晃动限额
-T_max = 2 # 单步时间晃动限额 / ns
+r_max = 0.5 # 单步距离晃动限额
+T_max = 0.5 # 单步时间晃动限额 / ns
 
 # 随机晃动一步
 def perturbation(event):

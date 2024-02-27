@@ -1,4 +1,7 @@
 # recon range: [-1,1], need * detector radius
+'''
+Recon by PEt_stack
+'''
 import numpy as np
 import tables
 import pyarrow.parquet as pq
@@ -67,39 +70,41 @@ def Recon(filename, output):
         x0 = np.array([reconbc['x'], reconbc['y'], reconbc['z'], reconbc['t']])
         reconbc['EventID'] = sid
 
-        for step in range(2500):
-            data = group_reset[group_reset["cumulation"] == step]
-            fired_PMT = data["ch"].values
-            time_array = data["PEt"].values + data["offset"].values
-            pe_array = np.array(data['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0))
-            event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
-            Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
-            E0 = LH.Likelihood(x0, *event_parameter, expect = True)
-            
-            # 进行 MCMC 晃动
-            for recon_step in range(MC_step):
-                Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
-                E0 = LH.Likelihood(x0, *event_parameter, expect = True)
-                x1, Likelihood_x1 = mcmc(x0, event_parameter)
-                E1 = LH.Likelihood(x1, *event_parameter, expect = True)
-                record_step = step * MC_step + recon_step
-                recon['EventID'] = sid
-                recon['step'] = record_step
-
-                if ((Likelihood_x1 - Likelihood_x0) > np.log(u[record_step])):
-                    recon['E'] = E1
-                    recon['x'], recon['y'], recon['z'] = x1[0:3]*shell
-                    recon['t'] = x1[3]
-                    recon['Likelihood'] = Likelihood_x1
-                    x0 = x1
-                    recon['accept'] = 1
-                else:
-                    recon['E'] = E0
-                    recon['x'], recon['y'], recon['z'] = x0[0:3]*shell
-                    recon['t'] = x0[3]
-                    recon['Likelihood'] = Likelihood_x0
-                    recon['accept'] = 0
-                recon.append()
+        # mcmc 重建
+        np.random.seed(sid)
+        u = np.random.uniform(0,1,MC_step)
+        grouped = group_eid.groupby(['ch', 'offset'])
+        group_reset = grouped.apply(process_group)
+        group_reset = group_reset.reset_index(drop=True)
+        fired_PMT = group_reset["ch"].values
+        time_array = group_reset["PEt"].values + group_reset["offset"].values
+        pe_array = np.array(group_reset['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0))
+        event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
+        Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
+        E0 = LH.Likelihood(x0, *event_parameter, expect = True)
+        
+        # 进行 MCMC 晃动
+        for recon_step in range(MC_step):
+            x1, Likelihood_x1 = mcmc(x0, event_parameter)
+            E1 = LH.Likelihood(x1, *event_parameter, expect = True)
+            recon['EventID'] = sid
+            recon['step'] = recon_step
+            if ((Likelihood_x1 - Likelihood_x0) > np.log(u[recon_step])):
+                recon['E'] = E1
+                recon['x'], recon['y'], recon['z'] = x1[0:3]*shell
+                recon['t'] = x1[3]
+                recon['Likelihood'] = Likelihood_x1
+                x0 = x1
+                Likelihood_x0 = Likelihood_x1
+                E0 = E1
+                recon['accept'] = 1
+            else:
+                recon['E'] = E0
+                recon['x'], recon['y'], recon['z'] = x0[0:3]*shell
+                recon['t'] = x0[3]
+                recon['Likelihood'] = Likelihood_x0
+                recon['accept'] = 0
+            recon.append()
         # echo
         '''
         print('-'*60)
@@ -143,10 +148,11 @@ parser.add_argument('--init', dest='init', type=str, default=None,
 
 args = parser.parse_args()
 
+# boundaries
 shell = 0.65
 Gain = 164
 sigma = 40
-MC_step = args.MCstep
+MC_step = args.MCstep # 进行 mcmc 晃动步数，后续根据 Gelman-Rubin 确定
 PMT_pos = np.loadtxt(args.PMT)
 coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFile = args.pe, TimeFile = args.time)
 cart = None

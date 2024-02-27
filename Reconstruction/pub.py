@@ -11,8 +11,8 @@ class Recon(tables.IsDescription):
     y = tables.Float16Col(pos=3)        # y position
     z = tables.Float16Col(pos=4)        # z position
     E = tables.Float16Col(pos=5)        # Energy
-    t = tables.Float16Col(pos=6)        # time
-    Likelihood = tables.Float16Col(pos=7)
+    t = tables.Float32Col(pos=6)        # time
+    Likelihood = tables.Float64Col(pos=7)
     accept = tables.Int64Col(pos=8)
     #reconstep = tables.Int64Col(pos=9)       # recon step
 
@@ -58,7 +58,8 @@ class LH_Zer:
         if expect:
             return energy
         else:
-            L2 = LH.Likelihood_Time(basis_time, vertex[-1], fired_PMT, time_array, coeff_time)
+            # 暂时不启用 时间项
+            # L2 = LH.Likelihood_Time(basis_time, vertex[-1], fired_PMT, time_array, coeff_time)
             # return L1 + L2
             return L1
 

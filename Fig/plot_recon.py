@@ -31,7 +31,11 @@ beta_mcmc = mcmc[mcmc["particle"] == 1]
 alpha_bc = bc[bc["particle"] == 0]
 beta_bc = bc[bc["particle"] == 1]
 
-x_alpha, popt_alpha, pcov_alpha = fit.fitdata(alpha_mcmc['E'].values, 0.22, 0.28, 10)
+# std cut
+alpha_mcmc = alpha_mcmc[(alpha_mcmc['std_xy'] < 0.1) & (alpha_mcmc['std_z'] < 0.1)]
+beta_mcmc = beta_mcmc[(beta_mcmc['std_xy'] < 0.1) & (beta_mcmc['std_z'] < 0.1)]
+
+x_alpha, popt_alpha, pcov_alpha = fit.fitdata(alpha_mcmc['E'].values, 0.04, 0.22, 10)
 x_beta, popt_beta, pcov_beta = fit.fitdata(beta_mcmc['E'].values, 0, 1, 10)
 
 with PdfPages(args.opt) as pp:
@@ -47,7 +51,7 @@ with PdfPages(args.opt) as pp:
 
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.scatter(alpha_mcmc['xy'], alpha_mcmc['z'], alpha=0.2, s=5, label='recon')
-    ax.axvline(x=0.845, color='r', linestyle='--', label='x^2+y^2=0.65^2+0.65^2')
+    ax.axvline(x=0.4225, color='r', linestyle='--', label='x^2+y^2=0.65^2')
     ax.axhline(y=-0.65, color='g', linestyle='--', label='z=-0.65')
     ax.axhline(y=0.65, color='c', linestyle='--', label='z=0.65')
     ax.set_title('alpha scatter z-average(x^2+y^2)')
@@ -68,7 +72,8 @@ with PdfPages(args.opt) as pp:
     ax.set_ylabel('z / m')
     pp.savefig(fig)
     plt.close(fig)
-    '''
+
+    
     fig, ax = plt.subplots()
     h = ax.hist2d(alpha_mcmc['xy'], alpha_mcmc['z'], bins = 100, cmap='Blues')
     fig.colorbar(h[3], ax=ax)
@@ -77,7 +82,7 @@ with PdfPages(args.opt) as pp:
     ax.set_ylabel('z / m')
     pp.savefig(fig)
     plt.close(fig)
-    '''
+    
     fig, ax = plt.subplots()
     ax.hist(alpha_bc['E'], bins = 100, histtype='step')
     ax.set_title('alpha_Energy(BC) Distribution')
