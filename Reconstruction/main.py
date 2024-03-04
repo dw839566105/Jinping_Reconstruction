@@ -20,9 +20,7 @@ def process_group(group):
     cumul = group.drop_duplicates(subset=['step']).copy()
     cumul = cumul.loc[cumul.index.repeat(cumul['count'])]
     cumul['cumulation'] = range(len(cumul))
-    result = pd.concat([group, cumul]).sort_values(by=['step', 'count']).reset_index(drop=True)
-    result['cumulation'] = result['cumulation'].fillna(method='bfill')
-    result['cumulation'] = result['cumulation'].astype(int)
+    result = pd.merge(group, cumul[['step', 'cumulation']], on='step')
     return result
 
 def Recon(filename, output):
@@ -73,19 +71,19 @@ def Recon(filename, output):
             time_array = data["PEt"].values + data["offset"].values
             pe_array = np.array(data['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0))
             event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
-            Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
+            Likelihood_x0 = - LH.Likelihood(x0, *event_parameter, expect = False)
             E0 = LH.Likelihood(x0, *event_parameter, expect = True)
-            
+            breakpoint()
             # 进行 MCMC 晃动
             for recon_step in range(MC_step):
-                Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
+                Likelihood_x0 = - LH.Likelihood(x0, *event_parameter, expect = False)
                 E0 = LH.Likelihood(x0, *event_parameter, expect = True)
                 x1, Likelihood_x1 = mcmc(x0, event_parameter)
                 E1 = LH.Likelihood(x1, *event_parameter, expect = True)
                 record_step = step * MC_step + recon_step
                 recon['EventID'] = sid
                 recon['step'] = record_step
-
+                # Likelihood 是负值
                 if ((Likelihood_x1 - Likelihood_x0) > np.log(u[record_step])):
                     recon['E'] = E1
                     recon['x'], recon['y'], recon['z'] = x1[0:3]*shell
@@ -158,13 +156,13 @@ elif pe_type == 'Legendre':
     Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 0.95, 30))
 
 def mcmc(init, parameter):
-    Likelihood_init = LH.Likelihood(init, *parameter, expect = False)
+    Likelihood_init = - LH.Likelihood(init, *parameter, expect = False)
     result = perturbation(init)
     # 判断是否超出边界
     if np.sum(result[0:3] ** 2) >= np.square(0.97):
         return init, Likelihood_init
     else:
-        Likelihood_result = LH.Likelihood(result, *parameter, expect = False)
+        Likelihood_result = - LH.Likelihood(result, *parameter, expect = False)
         return result, Likelihood_result
 
 Recon(args.filename, args.output)

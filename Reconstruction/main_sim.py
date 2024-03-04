@@ -6,7 +6,9 @@ import numpy as np
 import tables
 import pyarrow.parquet as pq
 import pandas as pd
+import uproot
 import argparse
+import awkward as ak
 from argparse import RawTextHelpFormatter
 from scipy.optimize import minimize
 from zernike import RZern
@@ -16,15 +18,6 @@ import warnings
 warnings.filterwarnings('ignore')
 np.set_printoptions(precision=3, suppress=True)
 
-def process_group(group):
-    '''
-    Reset index_step in waveform analysis(FSMP)
-    '''
-    cumul = group.drop_duplicates(subset=['step']).copy()
-    cumul = cumul.loc[cumul.index.repeat(cumul['count'])]
-    cumul['cumulation'] = range(len(cumul))
-    result = pd.merge(group, cumul[['step', 'cumulation']], on='step')
-    return result
 
 def Recon(filename, output):
     '''
@@ -44,39 +37,24 @@ def Recon(filename, output):
     ReconTable = h5file.create_table(group, "Recon", pub.Recon, "Recon")
     recon = ReconTable.row
     # Loop for event
-    f = pq.read_table(filename).to_pandas()
+    f = uproot.open(filename)
+    data = f['SimTriggerInfo']
+    PMTId = data['PEList.PMTId'].array()
+    Charge = data['PEList.Charge'].array()
+    Time = data['PEList.PulseTime'].array()
+    SegmentId = ak.to_numpy(ak.flatten(data['truthList.SegmentId'].array()))
 
-    # few events test
-    if args.num > 0:
-        events = args.num
-        eid_list = f['eid'].unique()[:events]
-        f = f[f['eid'].isin(eid_list)]
-
-    grouped = f.groupby("eid")
-    for sid, group_eid in grouped:
-        # mcmc 重建, 波形分析返回 2500 step，对应每个采样结果进行 MC_step 次 mcmc 晃动
+    for pmt, time_array, pe_array, sid in zip(PMTId, Time, Charge, SegmentId):
+        fired_PMT = ak.to_numpy(pmt)
+        time_array = ak.to_numpy(time_array)
+        pe_array, cid = np.histogram(fired_PMT, bins=np.arange(len(PMT_pos)+1)) 
+        if np.sum(pe_array)==0:
+            continue
         np.random.seed(sid)
         u = np.random.uniform(0, 1, 2500 * MC_step)
-        grouped = group_eid.groupby(['ch', 'offset'])
-        group_reset = grouped.apply(process_group)
-        group_reset = group_reset.reset_index(drop=True)
-        # 给定初值
-        time_array = group_reset["PEt"].values + group_reset["offset"].values
-        pe_array = np.array(group_reset['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0))
-        # reconbc 记录的是归一化的坐标
         reconbc['E'], reconbc['x'], reconbc['y'], reconbc['z'], reconbc['t'] = pub.Initial.FitGrid(pe_array, Mesh.mesh, Mesh.tpl, time_array)
         x0 = np.array([reconbc['x'], reconbc['y'], reconbc['z'], reconbc['t']])
         reconbc['EventID'] = sid
-
-        # mcmc 重建
-        np.random.seed(sid)
-        u = np.random.uniform(0,1,MC_step)
-        grouped = group_eid.groupby(['ch', 'offset'])
-        group_reset = grouped.apply(process_group)
-        group_reset = group_reset.reset_index(drop=True)
-        fired_PMT = group_reset["ch"].values
-        time_array = group_reset["PEt"].values + group_reset["offset"].values
-        pe_array = np.array(group_reset['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0))
         event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, args.ton, cart)
         Likelihood_x0 = - LH.Likelihood(x0, *event_parameter, expect = False)
         E0 = LH.Likelihood(x0, *event_parameter, expect = True)
@@ -159,16 +137,16 @@ coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFi
 cart = None
 if pe_type=='Zernike':
     LH = pub.LH_Zer
-    Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 0.95, 3))
+    Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 1, 3))
 elif pe_type == 'Legendre':
     LH = pub.LH_Leg
-    Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 0.95, 30))
+    Mesh = pub.construct_Leg(coeff_pe, PMT_pos, np.linspace(0.01, 1, 30))
 
 def mcmc(init, parameter):
     Likelihood_init = - LH.Likelihood(init, *parameter, expect = False)
     result = perturbation(init)
     # 判断是否超出边界
-    if np.sum(result[0:3] ** 2) >= np.square(0.97):
+    if np.sum(result[0:3] ** 2) >= np.square(1):
         return init, Likelihood_init
     else:
         Likelihood_result = - LH.Likelihood(result, *parameter, expect = False)

@@ -2,6 +2,7 @@ import numpy as np
 import tables
 import pandas as pd
 import h5py
+import fit
 import argparse
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -25,18 +26,28 @@ args = psr.parse_args()
 
 with h5py.File(args.ipt, "r") as recon:
     recon = pd.DataFrame(recon['Recon'][:])
-
+accept = recon['accept'].sum() / (recon['step'].max() + 1)
+print(f"accept-{accept}")
 #max_step = recon['step'].max()
 #recon = recon[recon['step'] > ((max_step + 1) / 2)]
+
 
 with PdfPages(args.opt) as pp:
     for eid in recon['EventID'].unique()[:args.num]:
         data = recon[recon['EventID'] == eid]
         r = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2 + data['z'].values ** 2)
         
+        # fit
+        x_fit, popt_x, pcov_x = fit.fitdata(data['x'].values, -0.65, 0.65, 10)
+        y_fit, popt_y, pcov_y = fit.fitdata(data['y'].values, -0.65, 0.65, 10)
+        z_fit, popt_z, pcov_z = fit.fitdata(data['z'].values, -0.65, 0.65, 10)
+        E_fit, popt_E, pcov_E = fit.fitdata(data['E'].values, 0, 1500, 10)
+
         # 能谱
         fig, ax = plt.subplots()
-        ax.hist(data['E'].values, bins = 100, histtype='step')
+        ax.hist(data['E'].values, bins = 100, histtype='step', label='recon')
+        ax.plot(E_fit, fit.gauss(E_fit, popt_E[0], popt_E[1], popt_E[2], popt_E[3]), label=f'mu-{popt_E[0]:.3f} sigma-{popt_E[1]:.3f}')
+        ax.legend()
         ax.set_title(f'Energy Distribution - Event{eid}')
         ax.set_xlabel('Energy / MeV')
         ax.set_ylabel('steps')
@@ -45,7 +56,9 @@ with PdfPages(args.opt) as pp:
 
         # vertex 分布
         fig, ax = plt.subplots()
-        ax.hist(data['x'].values, bins = 100, histtype='step')
+        ax.hist(data['x'].values, bins = 100, histtype='step', label='recon')
+        ax.plot(x_fit, fit.gauss(x_fit, popt_x[0], popt_x[1], popt_x[2], popt_x[3]), label=f'mu-{popt_x[0]:.3f} sigma-{popt_x[1]:.3f}')
+        ax.legend()
         ax.set_title(f'x Distribution - Event{eid}')
         ax.set_xlabel('x / m')
         ax.set_ylabel('steps')
@@ -53,7 +66,9 @@ with PdfPages(args.opt) as pp:
         plt.close(fig)
 
         fig, ax = plt.subplots()
-        ax.hist(data['y'].values, bins = 100, histtype='step')
+        ax.hist(data['y'].values, bins = 100, histtype='step', label='recon')
+        ax.plot(y_fit, fit.gauss(y_fit, popt_y[0], popt_y[1], popt_y[2], popt_y[3]), label=f'mu-{popt_y[0]:.3f} sigma-{popt_y[1]:.3f}')
+        ax.legend()
         ax.set_title(f'y Distribution - Event{eid}')
         ax.set_xlabel('y / m')
         ax.set_ylabel('steps')
@@ -61,7 +76,9 @@ with PdfPages(args.opt) as pp:
         plt.close(fig)
 
         fig, ax = plt.subplots()
-        ax.hist(data['z'].values, bins = 100, histtype='step')
+        ax.hist(data['z'].values, bins = 100, histtype='step', label='recon')
+        ax.plot(z_fit, fit.gauss(z_fit, popt_z[0], popt_z[1], popt_z[2], popt_z[3]), label=f'mu-{popt_z[0]:.3f} sigma-{popt_z[1]:.3f}')
+        ax.legend()
         ax.set_title(f'z Distribution - Event{eid}')
         ax.set_xlabel('z / m')
         ax.set_ylabel('steps')
@@ -72,6 +89,14 @@ with PdfPages(args.opt) as pp:
         ax.hist(data['x'].values ** 2 + data['y'].values ** 2, bins = 100, histtype='step')
         ax.set_title(f'x^2+y^2 Distribution - Event{eid}')
         ax.set_xlabel('x^2+y^2 / m^2')
+        ax.set_ylabel('steps')
+        pp.savefig(fig)
+        plt.close(fig)
+
+        fig, ax = plt.subplots()
+        ax.hist(data['Likelihood'].values, bins = 100, histtype='step')
+        ax.set_title(f'Likelihood Distribution - Event{eid}')
+        ax.set_xlabel('Likelihood')
         ax.set_ylabel('steps')
         pp.savefig(fig)
         plt.close(fig)

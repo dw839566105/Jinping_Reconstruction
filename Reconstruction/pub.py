@@ -56,7 +56,8 @@ class LH_Zer:
         basis_pe, basis_time = LH.Calc_basis(vertex, PMT_pos, cart)
         L1, energy = LH.Likelihood_PE(basis_pe, pe_array, coeff_pe)
         if expect:
-            return energy
+            # 使用 2MeV 做的模拟
+            return (energy * 2)
         else:
             # 暂时不启用 时间项
             # L2 = LH.Likelihood_Time(basis_time, vertex[-1], fired_PMT, time_array, coeff_time)
@@ -120,7 +121,7 @@ class LH_Leg:
         vertex[2]: theta
         vertex[3]: phi
         '''
-        PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart = args
+        PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, TON, cart = args
         
         # boundary
         v = vertex[:3]
@@ -140,13 +141,18 @@ class LH_Leg:
             pe_array, coeff_pe)
 
         if expect:
-            return energy
+            # 用 2MeV 做的模拟
+            return energy * 2
         else:
-            L2 = LH_Leg.Likelihood_Time(
-                base_r[:coeff_time.shape[1]], 
-                base_t[:coeff_time.shape[0], fired_PMT],
-                vertex[-1], 
-                time_array, coeff_time)
+            if TON == 0:
+                return L1
+            else:
+                L2 = LH_Leg.Likelihood_Time(
+                    base_r[:coeff_time.shape[1]], 
+                    base_t[:coeff_time.shape[0], fired_PMT],
+                    vertex[-1], 
+                    time_array, coeff_time)
+
             return L1 + L2
 
     def Calc_basis(rho, cos_theta, len1, len2): 

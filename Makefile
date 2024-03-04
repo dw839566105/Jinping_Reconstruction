@@ -6,8 +6,8 @@ scan:=$(shell seq 0.01 0.01 $(Radius)) # different radius
 scan_compact:=$(shell seq 0.01 0.01 0.55) $(shell seq 0.55 0.002 0.644) # compact radius for calibration
 duplicate:=$(shell seq -w 1 30) # for spherical simulation data
 duplicate_v:=$(shell seq -w 60 99) # for validate data
-path:=/mnt/stage/douwei/JP_1t_github
-geo:=Simulation/DetectorStructure/1t
+path:=JP_1t
+geo:=/home/xinshunzhang/jinping-1ton-analysis/JSAP-install/Simulation/DetectorStructure/1t
 
 .PHONY: all
 all: recon
@@ -27,7 +27,7 @@ vset:=$(duplicate_v:%=$(path)/concat/ball/$(energy)/%.h5)
 recon_shell: $(scan_compact:%=$(path)/recon/shell/$(energy)/%.h5)
 recon_x: $(scan:%=$(path)/recon/point/x/$(energy)/%.h5)
 recon_y: $(scan:%=$(path)/recon/point/y/$(energy)/%.h5)
-recon_z: $(scan:%=$(path)/recon/point/z/$(energy)/%.h5)
+recon_z: $(scan:%=Reconresult/point/z/$(energy)/%.h5)
 recon_ball: $(duplicate:%=$(path)/recon/ball/$(energy)/%.h5)
 
 
@@ -52,11 +52,24 @@ coeff_PE_temp:=coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=coeff/Legendre/Gather/Time/2/80/10.h5
 Reconresult/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -n 1 -m 50 -o $@ > $@.log
+	time python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) --ton 0 -n 1 -m 20 -o $@
 
 Reconresult/%_stack.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/main_stack.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -n 10 -m 100000 -o $@ > $@.log
+	time python3 Reconstruction/main_stack.py -f $< --pe $(word 2, $^) --time $(word 3, $^) --ton 0 -n 0 -m 100000 -o $@
+
+Reconresult/%_t.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
+	mkdir -p $(dir $@)
+	time python3 Reconstruction/main_stack.py -f $< --pe $(word 2, $^) --time $(word 3, $^) --ton 1 -n 0 -m 100000 -o $@
+
+Reconresult/%.h5: JP_1t/%.root $(coeff_PE_temp) $(coeff_time_temp)
+	mkdir -p $(dir $@)
+	time python3 Reconstruction/main_sim.py -f $< --pe $(word 2, $^) --time $(word 3, $^) --ton 1 -n 1 -m 10000 -o $@
+
+Reconresult/%_t.h5: JP_1t/%.root $(coeff_PE_temp) $(coeff_time_temp)
+	mkdir -p $(dir $@)
+	time python3 Reconstruction/main_sim.py -f $< --pe $(word 2, $^) --time $(word 3, $^) --ton 0 -n 1 -m 10000 -o $@
+
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 collect/Bi214_0257.csv: collect/00000257.root
@@ -66,7 +79,7 @@ collect/Bi214_0257.csv: collect/00000257.root
 # gelman-rubin 收敛检验
 MutiRecon/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
-	time python3 Reconstruction/MutiRecon.py -f $< --pe $(word 2, $^) --event 248 --time $(word 3, $^) -o $@ -n 10 -m 10
+	time python3 Reconstruction/MutiRecon.py -f $< --pe $(word 2, $^) --event 248 --time $(word 3, $^) --ton 1 -o $@ -n 10 -m 10
 
 Gelman/%.h5: MutiRecon/%*.h5
 	mkdir -p $(dir $@)
@@ -78,6 +91,14 @@ Gelman/%.parquet: Gelman/%.h5
 
 Gelmanget: MutiRecon/0/BiPo/run00000257/0.h5 Gelman/0/BiPo/run00000257/0.h5
 recon257get: Reconresult/0/BiPo/run00000257/0.h5 Reconresult/0/BiPo/run00000257/1.h5 Reconresult/0/BiPo/run00000257/2.h5
+simrecon:=$(duplicate:%=Reconresult/root/ball/2/%.h5)
+simrecont:=$(duplicate:%=Reconresult/root/ball/2/%_t.h5)
+simreconz:=$(scan:%=Reconresult/root/point/z/2/%.h5)
+simroot:=$(duplicate:%=JP_1t/root/ball/2/%.root)
+simrootz:=$(scan:%=JP_1t/root/point/z/2/%.root)
+simstep:=$(duplicate:%=Fig/steps/root/ball/2/%.pdf)
+simpre:=$(duplicate:%=Fig/sim/pre/root/ball/2/%.h5)
+tmpget: Fig/sim/alpha.pdf Fig/sim/ele.pdf
 
 # 能谱和顶点分布
 Fig/events/%.h5: Reconresult/%/*.h5
@@ -96,6 +117,27 @@ Fig/steps/%.pdf: Reconresult/%.h5
 Fig/gelman/%.pdf: Gelman/%.parquet
 	mkdir -p $(dir $@)
 	python3 Fig/plot_gelman.py $^ -o $@ -n 1 -m 10
+
+## 模拟数据：真值与重建对比图
+# 球内均匀
+Fig/sim/ball/pre.h5: $(simrecon) $(simrecont) $(simroot)
+	mkdir -p $(dir $@)
+	python3 Fig/pre_sim.py -i $(simrecon) -w $(simrecont) -t $(simroot) -o $@
+
+Fig/%.pdf: Fig/%.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_sim.py $^ -o $@
+
+# z 轴均匀
+Fig/sim/pointz/pre.h5: $(simreconz) $(simrootz)
+	mkdir -p $(dir $@)
+	python3 Fig/pre_sim.py -i $(simreconz) -t $(simrootz) -o $@
+
+# alpha/ele 波形重建
+Fig/sim/%.h5: Reconresult/sim/%_stack.h5 Reconresult/sim/%_t.h5 JP_1t/root/%.root
+	mkdir -p $(dir $@)
+	python3 Fig/pre_sim.py -i $< -w $(word 2, $^) -t $(word 3, $^) -o $@
+
 
 # time profile
 profile/%.stat: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)

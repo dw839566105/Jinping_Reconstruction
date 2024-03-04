@@ -20,9 +20,7 @@ def process_group(group):
     cumul = group.drop_duplicates(subset=['step']).copy()
     cumul = cumul.loc[cumul.index.repeat(cumul['count'])]
     cumul['cumulation'] = range(len(cumul))
-    result = pd.concat([group, cumul]).sort_values(by=['step', 'count']).reset_index(drop=True)
-    result['cumulation'] = result['cumulation'].fillna(method='bfill')
-    result['cumulation'] = result['cumulation'].astype(int)
+    result = pd.merge(group, cumul[['step', 'cumulation']], on='step')
     return result
 
 def Recon(filename, output):
@@ -72,8 +70,8 @@ def Recon(filename, output):
             fired_PMT = data["ch"].values
             time_array = data["PEt"].values + data["offset"].values
             pe_array = np.array(data['ch'].value_counts().reindex(range(len(PMT_pos)), fill_value=0))
-            event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, cart)
-            Likelihood_x0 = LH.Likelihood(x0, *event_parameter, expect = False)
+            event_parameter = (PMT_pos, fired_PMT, time_array, pe_array, coeff_pe, coeff_time, args.ton, cart)
+            Likelihood_x0 = - LH.Likelihood(x0, *event_parameter, expect = False)
             E0 = LH.Likelihood(x0, *event_parameter, expect = True)
 
             # 进行 MCMC 晃动
@@ -129,6 +127,9 @@ parser.add_argument('--event', dest='event', type=int, default=None,
 parser.add_argument('-n', dest='num', type=int, default=10,
                     help='chain number')
 
+parser.add_argument('--ton', dest='ton', type=int, default=0,
+                    help='probe_time ON/OFF')
+
 parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10,
                     help='mcmc step per PEt')
 
@@ -147,13 +148,13 @@ coeff_pe, coeff_time, pe_type, time_type = pub.load_coeff.load_coeff_Single(PEFi
 cart = None
 
 def mcmc(init, parameter):
-    Likelihood_init = LH.Likelihood(init, *parameter, expect = False)
+    Likelihood_init = - LH.Likelihood(init, *parameter, expect = False)
     result = perturbation(init)
     # 判断是否超出边界
     if np.sum(result[0:3] ** 2) >= np.square(1):
         return init, Likelihood_init
     else:
-        Likelihood_result = LH.Likelihood(result, *parameter, expect = False)
+        Likelihood_result = - LH.Likelihood(result, *parameter, expect = False)
         return result, Likelihood_result
 
 for i in range(args.num):
