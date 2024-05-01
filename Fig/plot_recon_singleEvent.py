@@ -26,11 +26,8 @@ args = psr.parse_args()
 
 with h5py.File(args.ipt, "r") as recon:
     recon = pd.DataFrame(recon['Recon'][:])
-accept = recon['accept'].sum() / (recon['step'].max() + 1)
+accept = recon['accept'].sum() / len(recon)
 print(f"accept-{accept}")
-#max_step = recon['step'].max()
-#recon = recon[recon['step'] > ((max_step + 1) / 2)]
-
 
 with PdfPages(args.opt) as pp:
     for eid in recon['EventID'].unique()[:args.num]:
@@ -41,11 +38,13 @@ with PdfPages(args.opt) as pp:
         x_fit, popt_x, pcov_x = fit.fitdata(data['x'].values, -0.65, 0.65, 10)
         y_fit, popt_y, pcov_y = fit.fitdata(data['y'].values, -0.65, 0.65, 10)
         z_fit, popt_z, pcov_z = fit.fitdata(data['z'].values, -0.65, 0.65, 10)
-        E_fit, popt_E, pcov_E = fit.fitdata(data['E'].values, 0, 1500, 10)
+        #E_fit, popt_E, pcov_E = fit.fitdata(data['E'].values, 0, 10000, 10)
+        E_fit, popt_E, pcov_E = fit.fitdata(data['E'].values / 2500, 0, 5, 10)
 
         # 能谱
         fig, ax = plt.subplots()
-        ax.hist(data['E'].values, bins = 100, histtype='step', label='recon')
+        ax.hist(data['E'].values / 2500, bins = 100, histtype='step', label='recon')
+        # ax.hist(data['E'].values, bins = 100, histtype='step', label='recon')
         ax.plot(E_fit, fit.gauss(E_fit, popt_E[0], popt_E[1], popt_E[2], popt_E[3]), label=f'mu-{popt_E[0]:.3f} sigma-{popt_E[1]:.3f}')
         ax.legend()
         ax.set_title(f'Energy Distribution - Event{eid}')
@@ -168,7 +167,7 @@ with PdfPages(args.opt) as pp:
         h = ax.scatter(data['x'].values ** 2 + data['y'].values ** 2, data['z'].values, alpha=0.2, s=5, label='recon')
         fig.colorbar(h, ax=ax)
         ax.axvline(x=0.4225, color='r', linestyle='--', label='x^2+y^2=0.65^2')
-        ax.axhline(y=-0.65, color='g', linestyle='--', label='z=-0.65')
+        impor
         ax.axhline(y=0.65, color='c', linestyle='--', label='z=0.65')
         ax.set_title(f'vertex distribution Event{eid} zstd-{(np.std(y)):.3f} xystd-{(np.std(x)):.3f}')
         ax.set_xlabel('x^2+y^2 / m^2')
