@@ -7,17 +7,15 @@ import argparse
 import h5py
 import numpy as np
 import uproot
-import pyarrow.parquet as pq
+import sys
+sys.path.append('../')
+from Reconstruction.DetectorConfig import shell
 
 shell = 0.65
 psr = argparse.ArgumentParser()
 psr.add_argument("-e", dest="events", help="list of events")
 psr.add_argument("-o", dest='opt', help="output")
-psr.add_argument('--step', dest='step', nargs="+", help="step recon")
-psr.add_argument('--stack', dest='stack', nargs="+", help="stack recon")
-psr.add_argument('--fsmp', dest='fsmp', nargs="+", help="fsmp result")
-psr.add_argument('--bc', dest='bc', help="bc recon")
-psr.add_argument('--ser', dest='ser', help="ser file")
+psr.add_argument('-r', dest='recon', nargs="+", help="recon file")
 args = psr.parse_args()
 
 eids = pd.read_csv(args.events, sep='\s+', names=("particle", "run", "EventID", "file"),)
@@ -31,14 +29,15 @@ def read_recon(inputfiles, connect):
     for f in range(len(inputfiles)):
         with h5py.File(inputfiles[f],"r") as ipt:
             recon = pd.DataFrame(ipt['Recon'][:])
-            recon['r'] = np.sqrt(recon['x']**2 + recon['y']**2 + recon['z']**2)
-            if connect == "stack":
-                recon['E'] = recon['E'].apply(lambda x: x / 2500)
+            # burn 前 3/5
+            recon = recon[recon['step'] > (args.step / 5 * 3)]
             recon_data = recon.groupby('EventID').mean().reset_index()
-            # std = recon.groupby('EventID').agg({'xy': 'std', 'z': 'std'})
-            # std = std.rename(columns={'xy': 'std_xy', 'z': 'std_z'})
-            # recon_data = pd.merge(recon_data, std, on='EventID', how='inner')
-            result_mcmc = pd.concat([result_mcmc, recon_data]) 
+            recon['x'] = recon['x'].apply(lambda x: x * shell)
+            recon['y'] = recon['y'].apply(lambda x: x * shell)
+            recon['z'] = recon['z'].apply(lambda x: x * shell)
+            recon_data['r'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2 + recon_data['z'].values**2)
+            recon_data['xy'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2)
+            result_mcmc = pd.concat([result_mcmc, recon_data])
     result_mcmc['EventID'] = result_mcmc['EventID'].astype('int')
     print("done")
     return result_mcmc
@@ -72,55 +71,30 @@ def read_bc(inputfile):
     cut4 = (D2First[:,1] < dcut)
     cut = cut2 * cut3
 
-    result_alpha = pd.DataFrame(columns=['EventID', 'x', 'y', 'z', 'E', 'r'])
+    result_alpha = pd.DataFrame(columns=['EventID', 'x', 'y', 'z', 'E', 'r', 'xy'])
     result_alpha['EventID'] = TrigNum[cut][:,1]
     result_alpha['x'] = X[cut][:,1] / 1000
     result_alpha['y'] = Y[cut][:,1] / 1000
     result_alpha['z'] = Z[cut][:,1] / 1000
     result_alpha['E'] = E[cut][:,1]
     result_alpha['r'] = np.sqrt(result_alpha['x']**2 + result_alpha['y']**2 + result_alpha['z']**2)
-    result_beta = pd.DataFrame(columns=['EventID', 'x', 'y', 'z', 'E', 'r'])
+    result_alpha['xy'] = np.sqrt(result_alpha['x']**2 + result_alpha['y']**2)
+    result_beta = pd.DataFrame(columns=['EventID', 'x', 'y', 'z', 'E', 'r', 'xy'])
     result_beta['EventID'] = TrigNum[cut][:,0]
     result_beta['x'] = X[cut][:,0] / 1000
     result_beta['y'] = Y[cut][:,0] / 1000
     result_beta['z'] = Z[cut][:,0] / 1000
     result_beta['E'] = E[cut][:,0]
     result_beta['r'] = np.sqrt(result_beta['x']**2 + result_beta['y']**2 + result_beta['z']**2)
+    result_beta['xy'] = np.sqrt(result_beta['x']**2 + result_beta['y']**2)
     result_bc = pd.concat([result_alpha, result_beta])
     print("done")
     return result_bc   
 
-def charge_sum(data):
-    gain = pd.DataFrame(columns=['ch', 'mus'])
-    with h5py.File(args.ser,"r") as ipt:
-        gain['ch'] = ipt['ser']['ch']
-        gain['mus'] = ipt['ser']['mus']
-    merged_df = pd.merge(data.iloc[:1000], gain, on='ch')
-    merged_df['NPE'] = merged_df['q'] * merged_df['count'] / merged_df['mus'] / 2500
-    result = merged_df.groupby('EventID')['NPE'].sum().reset_index()
-    return result
-
-def read_fsmp(inputfiles):
-    print("read fsmp")
-    result_fsmp = pd.DataFrame(columns=['EventID', 'NPE'])
-    for f in range(len(inputfiles)):
-        data = pq.read_table(inputfiles[f]).to_pandas()
-        data.rename(columns={'eid': 'EventID'}, inplace=True)
-        result_fsmp = pd.concat([result_fsmp, charge_sum(data)])
-    result_fsmp['EventID'] = result_fsmp['EventID'].astype('int')
-    print("done")
-    return result_fsmp
-
-# step = pd.merge(read_recon(args.step, "step"), eids[['EventID', 'particle']], on='EventID', how='inner')
-# stack = pd.merge(read_recon(args.stack, "stack"), eids[['EventID', 'particle']], on='EventID', how='inner')
-# bc = pd.merge(read_bc(args.bc), eids[['EventID', 'particle']], on='EventID', how='inner')
-fsmp = pd.merge(read_fsmp(args.fsmp), eids[['EventID', 'particle']], on='EventID', how='inner')
-breakpoint()
+bc = pd.merge(read_bc(args.bc), eids[['EventID', 'particle']], on='EventID', how='inner')
+recon = pd.merge(read_recon(args.recon), eids[['EventID', 'particle']], on='EventID', how='inner')
 opts = {"compression": "gzip", "shuffle": True}
 with h5py.File(args.opt, "w") as opt:
-    breakpoint()
-    # opt.create_dataset("step", data=step.to_records(index=False), **opts)
-    #opt.create_dataset("stack", data=stack.to_records(index=False), **opts)
-    #opt.create_dataset("bc", data=bc.to_records(index=False), **opts)
-    opt.create_dataset("fsmp", data=fsmp.to_records(index=False), **opts)
+    opt.create_dataset("bc", data=bc.to_records(index=False), **opts)
+    opt.create_dataset("recon", data=recon.to_records(index=False), **opts)
 

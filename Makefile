@@ -66,28 +66,7 @@ collect/Bi214_0257.csv: collect/00000257.root
 	ln -s ../Fig/fit.py .
 	python3 collect/pick.py -i $^ -o $@ -r collect/run0000257.pdf -c collect/run0000257_r3cut.pdf
 
-# gelman-rubin 收敛检验
-MutiRecon/%.h5: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
-	mkdir -p $(dir $@)
-	time python3 Reconstruction/main_dawn.py -f $< --pe $(word 2, $^) --time $(word 3, $^) --ton 1 -n 10 -m 5000 --muti True --init bc --connect stack -o $@
-
-Gelman/%.h5: MutiRecon/%*.h5
-	mkdir -p $(dir $@)
-	python3 Gelman/gelman.py -i $^ -o $@ > $@.log
-
-Gelman/%.parquet: Gelman/%.h5
-	mkdir -p $(dir $@)
-	./Gelman/gelman.R -i $< -o $@ -n 10
-
-gelmancheck: MutiRecon/0/BiPo/run00000257/0.h5 Fig/gelman/0/BiPo/run00000257/0.pdf
-filenum:=$(shell seq 0 2)
-fsmpresult:=$(filenum:%=charge/0/BiPo/run00000257/%.parquet)
-reconstack:=$(filenum:%=Reconresult/0/BiPo/run00000257/%_stack.h5)
-reconstep:=$(filenum:%=Reconresult/0/BiPo/run00000257/%_step.h5)
-BiPorecon: $(reconstack) $(reconstep) Fig/events/0/BiPo/run00000257.pdf 
-simrecon: Reconresult/sim/ele_stack_t.h5 Reconresult/sim/ele_stack.h5 Reconresult/sim/ele_step_t.h5 Reconresult/sim/ele_step.h5 Fig/sim/ele_step.pdf
-
-# 能谱和顶点分布
+# BiPo 能谱和顶点分布
 Fig/events/%.h5: $(reconstack) $(reconstep) $(fsmpresult) collect/00000257.root /mnt/eternity/sim/SER/0.h5
 	mkdir -p $(dir $@)
 	python3 Fig/pre_plot.py --step $(reconstep) --stack $(reconstack) --bc collect/00000257.root --fsmp $(fsmpresult) --ser /mnt/eternity/sim/SER/0.h5  -o $@ -e ../Bi214_0257.txt
@@ -101,9 +80,6 @@ Fig/steps/%.pdf: Reconresult/%.h5
 	mkdir -p $(dir $@)
 	python3 Fig/plot_recon_singleEvent.py $^ -o $@ -n 10
 
-Fig/gelman/%.pdf: Gelman/%.parquet
-	mkdir -p $(dir $@)
-	python3 Fig/plot_gelman.py $^ -o $@ -n 1 -m 10
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀
