@@ -9,9 +9,6 @@ duplicate_v:=$(shell seq -w 60 99) # for validate data
 path:=JP_1t
 geo:=$(G__JSAPSYS)/Simulation/DetectorStructure/1t
 
-.PHONY: all
-all: recon
-
 sim: shell point/x point/y point/z ball
 recon: recon_shell recon_x recon_y recon_z recon_ball
 
@@ -55,6 +52,8 @@ PMT:=PMT.txt
 MCstep:=10000
 FSMP:=/JNE/eternity/FSMP
 Simulation:=/JNE/eternity/Simulation/h5
+reconfiles:=$(patsubst $(FSMP)/fsmp/%.pq, Reconresult/%.h5, $(wildcard $(FSMP)/fsmp/BiPo/run00000257/*.pq))
+all: Fig/BiPo.pdf
 
 # 事例重建
 Reconresult/%.h5: $(FSMP)/fsmp/%.pq $(FSMP)/sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
@@ -62,16 +61,16 @@ Reconresult/%.h5: $(FSMP)/fsmp/%.pq $(FSMP)/sparsify/%.h5 $(coeff_PE_temp) $(coe
 	time python3 Reconstruction/main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 10 -m $(MCstep) -o $@ --data raw --sample EM --ton OFF
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
-collect/Bi214_0257.csv: collect/00000257.root
-	ln -s ../Fig/fit.py .
-	python3 collect/pick.py -i $^ -o $@ -r collect/run0000257.pdf -c collect/run0000257_r3cut.pdf
+BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
+Bi214_0257.txt: $(BiPo0257)
+	python3 pick.py -i $^ -o $@ -r run0000257.pdf -c run0000257_r3cut.pdf
 
 # BiPo 能谱和顶点分布
-Fig/events/%.h5: $(reconstack) $(reconstep) $(fsmpresult) collect/00000257.root /mnt/eternity/sim/SER/0.h5
+Fig/BiPo.h5: $(BiPo0257) $(reconfiles) Bi214_0257.txt
 	mkdir -p $(dir $@)
-	python3 Fig/pre_plot.py --step $(reconstep) --stack $(reconstack) --bc collect/00000257.root --fsmp $(fsmpresult) --ser /mnt/eternity/sim/SER/0.h5  -o $@ -e ../Bi214_0257.txt
+	python3 Fig/pre_bipo.py -b $(BiPo0257) -r $(reconfiles) -s $(MCstep) -e Bi214_0257.txt
 
-Fig/events/%.pdf: Fig/events/%.h5
+Fig/BiPo.pdf: Fig/BiPo.h5
 	mkdir -p $(dir $@)
 	python3 Fig/plot_recon.py $^ -o $@
 

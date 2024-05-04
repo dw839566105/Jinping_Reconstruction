@@ -13,6 +13,8 @@ psr = argparse.ArgumentParser()
 psr.add_argument("-e", dest="events", help="list of events")
 psr.add_argument("-o", dest='opt', help="output")
 psr.add_argument('-r', dest='recon', nargs="+", help="recon file")
+psr.add_argument('-b', dest='bc', help="bc file")
+psr.add_argument("-s", dest="step", type=int, help="MC step")
 args = psr.parse_args()
 
 eids = pd.read_csv(args.events, sep='\s+', names=("particle", "run", "EventID", "file"),)

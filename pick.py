@@ -6,13 +6,8 @@ import numpy as np
 import uproot
 import argparse
 import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.colors import ListedColormap, LinearSegmentedColormap
-import matplotlib.colors as colors
 from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-import matplotlib.patches as mpatches
-import fit
+from Fig import fit
 
 psr = argparse.ArgumentParser()
 psr.add_argument("-r", dest="recon", help="recon figs")
@@ -31,11 +26,6 @@ dcut = 400
 r3cutmin = 0.1
 r3cutmax = 0.19
 timemax = 1500000
-jet = plt.cm.jet
-newcolors = jet(np.linspace(0, 1, 32768))
-white = np.array([1, 1, 1, 0.5])
-newcolors[0, :] = white
-cmap = ListedColormap(newcolors)
 
 f = uproot.open(args.ipt)
 Fold = f['Event']['Fold'].array()

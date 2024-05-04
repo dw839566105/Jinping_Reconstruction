@@ -5,7 +5,7 @@ import h5py
 import fit
 import argparse
 import matplotlib.pyplot as plt
-from plot_basis import plot_fit, plot_zxy
+from plot_basis import plot_fit, plot_zxy, plot_hist
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.colors as colors
 import matplotlib.tri as tri
@@ -40,8 +40,8 @@ with PdfPages(args.opt) as pp:
         print(f"acceptz-{acceptz}")
         print(f"acceptr-{acceptr}")
         print(f"acceptE-{acceptE}")
-        data_r = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2 +  data['z'].values ** 2)
-        data_xy = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2)
+        data_r = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2 +  data['z'].values ** 2) * shell
+        data_xy = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2) * shell
         
         if args.switch == "ON":
             # E distribution
@@ -54,33 +54,21 @@ with PdfPages(args.opt) as pp:
             fig, axs = plt.subplots(2, 2, figsize=(10, 10))
             popt_x = plot_fit(data['x'].values * shell, axs[0,0], "x", "steps", -shell, shell, "m")
             popt_y = plot_fit(data['y'].values * shell, axs[0,1], "y", "steps", -shell, shell, "m")
-            popt_r = plot_fit(data_r * shell, axs[1,0], "r", "steps", 0, shell, "m")
+            popt_r = plot_fit(data_r, axs[1,0], "r", "steps", 0, shell, "m")
             popt_z = plot_fit(data['z'].values * shell, axs[1,1], "z", "steps", -shell, shell, "m")
             pp.savefig(fig)
             plt.close(fig)
 
             # r3 distribution
-            fig, ax = plt.subplots()
-            ax.hist(data_r ** 3, bins = 100, histtype='step')
-            ax.set_title(f'r^3 Distribution - Event{eid}')
-            ax.set_xlabel('r^3/m^3')
-            ax.set_ylabel('steps')
-            pp.savefig(fig)
-            plt.close(fig)
+            plot_hist(pp, data_r ** 3, "r^3", "steps", "m^3")
 
             # loglikelihood distribution
-            fig, ax = plt.subplots()
-            ax.hist(data['Likelihood'].values, bins = 100, histtype='step')
-            ax.set_title(f'LogLikelihood Distribution - Event{eid}')
-            ax.set_xlabel('LogLikelihood')
-            ax.set_ylabel('steps')
-            pp.savefig(fig)
-            plt.close(fig)
+            plot_hist(pp, data['Likelihood'].values, "LogLikelihood", "steps", "value")
 
             # 插值二维图
             fig, ax = plt.subplots(figsize=(25, 25))
             x = data_xy
-            y = data['z'].values
+            y = data['z'].values * shell
             z = data['Likelihood'].values
             xi = np.linspace(0, shell, 100)
             yi = np.linspace(-shell, shell, 100)
@@ -101,7 +89,7 @@ with PdfPages(args.opt) as pp:
 
             fig, ax = plt.subplots(figsize=(25, 25))
             x = data_xy
-            y = data['z'].values
+            y = data['z'].values * shell
             z = data['Likelihood'].values
             xi = np.linspace(0, shell, 100)
             yi = np.linspace(-shell, shell, 100)
@@ -120,10 +108,7 @@ with PdfPages(args.opt) as pp:
             plt.close(fig)
         
         # z-xy 分布
-        fig, ax = plt.subplots()
-        plot_zxy(data_xy ** 2, data['z'].values, ax, fig)
-        pp.savefig(fig)
-        plt.close(fig)
+        plot_zxy(pp, data_xy ** 2, data['z'].values)
 
         # Evolution
         fig, axs = plt.subplots(6, 1, figsize=(25, 30))
@@ -134,14 +119,14 @@ with PdfPages(args.opt) as pp:
         axs[0].set_ylabel('Energy / MeV')
         axs[0].set_xlabel('step')
 
-        axs[1].plot(data['x'].values)
+        axs[1].plot(data['x'].values * shell)
         if args.mode == "sim":
             axs[1].axhline(y=truth_data['x'].values, color='g', linestyle='--')
         axs[1].set_title(f'x Evolution - Event{eid}')
         axs[1].set_ylabel('x / m')
         axs[1].set_xlabel('step')
 
-        axs[2].plot(data['y'].values)
+        axs[2].plot(data['y'].values * shell)
         if args.mode == "sim":
             axs[2].axhline(y=truth_data['y'].values, color='g', linestyle='--')
         axs[2].set_title(f'y Evolution - Event{eid}')
@@ -155,7 +140,7 @@ with PdfPages(args.opt) as pp:
         axs[3].set_ylabel('r / m')
         axs[3].set_xlabel('step')
 
-        axs[4].plot(data['z'].values)
+        axs[4].plot(data['z'].values * shell)
         if args.mode == "sim":
             axs[4].axhline(y=truth_data['z'].values, color='g', linestyle='--')
         axs[4].set_title(f'z Evolution - Event{eid}')

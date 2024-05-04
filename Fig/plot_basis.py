@@ -13,13 +13,23 @@ def plot_fit(data, ax, xtitle, ytitle, start, end, unit):
     ax.set_ylabel(ytitle)
     return popt
 
-def plot_hist(data, ax, xtitle, ytitle, unit):
+def plot_fit_fig(pp, data, xtitle, ytitle, start, end, unit):
+    fig, ax = plt.subplots()
+    plot_fit(data, ax, xtitle, ytitle, start, end, unit)
+    pp.savefig(fig)
+    plt.close(fig)
+
+def plot_hist(pp, data, xtitle, ytitle, unit):
+    fig, ax = plt.subplots()
     ax.hist(data, bins = 100, histtype='step')
     ax.set_title(f'{xtitle} Distribution')
     ax.set_xlabel(f'{xtitle} / {unit}')
     ax.set_ylabel(ytitle)
+    pp.savefig(fig)
+    plt.close(fig)
 
-def plot_zxy(data1, data2, ax, fig):
+def plot_zxy(pp, data1, data2):
+    fig, ax = plt.subplots()
     h = ax.hist2d(data1, data2, bins = 100, cmap='Blues')
     fig.colorbar(h[3], ax=ax)
     plt.axvline(x=shell**2, color='r', linestyle='--')
@@ -28,16 +38,24 @@ def plot_zxy(data1, data2, ax, fig):
     ax.set_title(f'z-x^2+y^2')
     ax.set_xlabel('x^2 + y^2 / m^2')
     ax.set_ylabel('z / m')
+    pp.savefig(fig)
+    plt.close(fig)
 
-def plot_hist2d(data1, data2, ax, fig, title1, title2, start1, end1, start2, end2, unit1, unit2, binnum):
+def plot_hist2d(pp, data1, data2, title1, title2, start1, end1, start2, end2, unit1, unit2, binnum):
+    fig, ax = plt.subplots()
     h = ax.hist2d(data1, data2, bins = binnum, range=[[min(start1, end1), max(start1, end1)], [min(start2, end2), max(start2, end2)]], cmap='plasma')
     fig.colorbar(h[3], ax=ax)
     ax.set_title(f'{title1}-{title2} Distribution')
     ax.set_xlabel(f'{title1} / {unit1}')
     ax.set_ylabel(f'{title2} / {unit2}')
+    pp.savefig(fig)
+    plt.close(fig)
 
-def plot_scatter(data1, data2, ax, xtitle, ytitle, unit1, unit2):
+def plot_scatter(pp, data1, data2, xtitle, ytitle, unit1, unit2):
+    fig, ax = plt.subplots()
     ax.scatter(data1, data2, alpha=0.2, s=5)
     ax.set_title(f'{ytitle}-{xtitle} scatter distribution')
     ax.set_xlabel(f'{xtitle} / {unit1}')
     ax.set_ylabel(f'{ytitle} / {unit2}')
+    pp.savefig(fig)
+    plt.close(fig)
