@@ -14,6 +14,7 @@ from config import *
 from DetectorConfig import E0
 from tqdm import tqdm
 import LH
+from fsmp_reader import FSMPreader
 
 class DataType(tables.IsDescription):
     '''
