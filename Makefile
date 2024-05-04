@@ -7,7 +7,7 @@ scan_compact:=$(shell seq 0.01 0.01 0.55) $(shell seq 0.55 0.002 0.644) # compac
 duplicate:=$(shell seq -w 1 30) # for spherical simulation data
 duplicate_v:=$(shell seq -w 60 99) # for validate data
 path:=JP_1t
-geo:=/opt/gentoo/usr/share/JSAP/Simulation/DetectorStructure/1t
+geo:=$(G__JSAPSYS)/Simulation/DetectorStructure/1t
 
 .PHONY: all
 all: recon
@@ -49,12 +49,12 @@ coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Lege
 
 ################# Reconstruction ############################
 # probe 源自 douwei
-coeff_PE_temp:=/tarski/JNE/eternity/harmonics/coeff/Legendre/Gather/PE/2/80/40.h5
-coeff_time_temp:=/tarski/JNE/eternity/harmonics/coeff/Legendre/Gather/Time/2/80/10.h5
+coeff_PE_temp:=/JNE/eternity/harmonics/coeff/Legendre/Gather/PE/2/80/40.h5
+coeff_time_temp:=/JNE/eternity/harmonics/coeff/Legendre/Gather/Time/2/80/10.h5
 PMT:=PMT.txt
 MCstep:=10000
 FSMP:=/JNE/eternity/FSMP
-Simulation:=/mnt/eternity/Simulation/h5
+Simulation:=/JNE/eternity/Simulation/h5
 
 # 事例重建
 Reconresult/%.h5: $(FSMP)/fsmp/%.pq $(FSMP)/sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
