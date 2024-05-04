@@ -49,8 +49,8 @@ coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Lege
 
 ################# Reconstruction ############################
 # probe 源自 douwei
-coeff_PE_temp:=/JNE/eternity/harmonics/coeff/Legendre/Gather/PE/2/80/40.h5
-coeff_time_temp:=/JNE/eternity/harmonics/coeff/Legendre/Gather/Time/2/80/10.h5
+coeff_PE_temp:=/JNE/coeff/Legendre/Gather/PE/2/80/40.h5
+coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
 PMT:=PMT.txt
 MCstep:=10000
 FSMP:=/JNE/eternity/FSMP
@@ -59,7 +59,7 @@ Simulation:=/JNE/eternity/Simulation/h5
 # 事例重建
 Reconresult/%.h5: $(FSMP)/fsmp/%.pq $(FSMP)/sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
 	mkdir -p $(dir $@)
-	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 10 -m $(MCstep) -o $@ --data raw --sample EM --ton OFF
+	time python3 Reconstruction/main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 10 -m $(MCstep) -o $@ --data raw --sample EM --ton OFF
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 collect/Bi214_0257.csv: collect/00000257.root
@@ -78,8 +78,7 @@ Fig/events/%.pdf: Fig/events/%.h5
 # 单事例不同步骤重建结果分布图
 Fig/steps/%.pdf: Reconresult/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_recon_singleEvent.py $^ -o $@ -n 10
-
+	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch OFF --mode raw
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀

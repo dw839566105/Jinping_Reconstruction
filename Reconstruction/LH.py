@@ -3,7 +3,6 @@
 重建所需文件读入
 '''
 import numpy as np
-from DetectorConfig import chs
 
 def LogLikelihood_PE(E, pe_array, expect):
     '''
@@ -26,33 +25,13 @@ def LogLikelihood_quantile(y, T_i, tau, ts):
     L = (T_i-y) * (y<T_i) * (1-tau) + (y-T_i) * (y>=T_i) * tau
     return L/ts
 
-def genPE(Z):
-    if 's0' in Z.columns:
-        return Z.set_index('ch').reindex(range(chs), fill_value=0)['s0'].values
-    elif 'PEt' in Z.columns:
-        return np.array(Z['ch'].value_counts().reindex(range(chs), fill_value=0))
-    else:
-        raise Exception("Data Error")
-
-def genPEt(Z, PEchain):
-    if 'PEt' in Z.columns:
-        return Z["PEt"].values + Z["offset"].values
-    else:
-        raise Exception("Data Error")
-
-def genFired(Z):
-    return Z["ch"].values
-
-def LogLikelihood(vertex, Z, probe, time_mode, data_mode):
-    pe_array = genPE(Z)
+def LogLikelihood(vertex, pe_array, time_array, chs, probe, time_mode, data_mode):
     expect = probe.callPE(vertex)
     L1 = LogLikelihood_PE(vertex[3], pe_array, expect)
     if time_mode == "OFF":
         return L1
     else:
-        time_array = Z["PEt"].values + Z["offset"].values
-        firedPMT = genFired(Z)
-        Ti = probe.callT(vertex, firedPMT)
+        Ti = probe.callT(vertex, chs)
         return L1 + LogLikelihood_Time(Ti, time_array)
     
 

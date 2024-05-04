@@ -15,39 +15,62 @@ from DetectorConfig import E0
 from tqdm import tqdm
 import LH
 
-def reconstruction(data, output, probe, pmt_pos, MC_step, sampling_mode, data_mode, time_mode):
+class DataType(tables.IsDescription):
+    '''
+    重建数据储存类型
+    '''
+    EventID = tables.Int64Col(pos=0)    # EventNo
+    step = tables.Int64Col(pos=1)       # wave step
+    x = tables.Float32Col(pos=2)        # x position
+    y = tables.Float32Col(pos=3)        # y position
+    z = tables.Float32Col(pos=4)        # z position
+    E = tables.Float32Col(pos=5)        # Energy
+    t = tables.Float32Col(pos=6)        # time
+    Likelihood = tables.Float64Col(pos=7)
+    acceptz = tables.Float32Col(pos=8)
+    acceptr = tables.Float32Col(pos=9)
+    acceptE = tables.Float32Col(pos=10)
+    acceptt = tables.Float32Col(pos=11)
+
+def genPE(chs, s0s):
+    pe_array = np.zeros(chnums)
+    for i in range(len(chs)):
+        pe_array[chs[i]] = s0s[i]
+    return pe_array
+
+def genTime(zs, s0s, offsets):
+    time_array = np.zeros(np.sum(s0s))
+    j = 0
+    for i in range(len(s0s)):
+        time_array[j : j + s0s[i]] = zs[:s0s] + offsets[i]
+        j += s0s
+    return time_array
+
+def reconstruction(fsmp, sparsify, output, probe, pmt_pos, MC_step, sampling_mode, time_mode):
     '''
     reconstruction
     '''
     # Create the output file, the group, tables
     h5file = tables.open_file(output, mode="w", title="OSIRISDetector", filters = tables.Filters(complevel=9))
     group = "/"
-    InitTable = h5file.create_table(group, "Init", Read.DataType, "Init")
+    InitTable = h5file.create_table(group, "Init", DataType, "Init")
     init = InitTable.row
-    ReconTable = h5file.create_table(group, "Recon", Read.DataType, "Recon")
+    ReconTable = h5file.create_table(group, "Recon", DataType, "Recon")
     recon = ReconTable.row
 
     # start reconstruction
-    for eid, data_eid in tqdm(data.groupby('eid')):
+    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, samples in FSMPreader(sparsify, fsmp).rand_iter():
         print(f"Start processing eid-{eid}")
-        data_eid = data_eid.reset_index(drop=True)
 
         # 设定随机数
         np.random.seed(eid % 1000000)
         u = np.random.uniform(0, 1, (MC_step, variables))
-
-        # 给出 Z 的初值
-        if data_mode == "raw":
-            Z0 = data_eid.loc[data_eid.groupby(['ch', 'offset'])['count'].idxmax()]
-            # 给出 z 抽样的随机数
-            index_sampled = np.random.choice(data_eid.index, size=MC_step, p=data_eid['count']/data_eid['count'].sum())
-            u_z = np.random.uniform(0, 1, MC_step)
-        else:
-            Z0 = data_eid.copy()
-
+    
         # 给出 vertex, LogLikelihhood 的初值
-        vertex0 = Detector.Init(Z0, pmt_pos, time_mode)
-        Likelihood_vertex0 = LH.LogLikelihood(vertex0, Z0, probe, time_mode, data_mode)
+        pe_array = genPE(chs, s0s)
+        time_array = genTime(zs, s0s, offsets)
+        vertex0 = Detector.Init(pe_array, time_array, pmt_pos, time_mode)
+        Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, time_array, chs, probe, time_mode, data_mode)
         init['x'], init['y'], init['z'], init['E'], init['t'] = vertex0
         init['EventID'] = eid
         init.append()
@@ -59,29 +82,29 @@ def reconstruction(data, output, probe, pmt_pos, MC_step, sampling_mode, data_mo
             recon['EventID'] = eid
             recon['step'] = recon_step
 
-            if data_mode == "raw":
-                # 对 z 采样 
-                expect = probe.callPE(vertex0)
-                expect[expect == 0] = 1E-6
-                s0_sampled = data_eid['s0'].values[index_sampled[recon_step]]
-                ch_sampled = data_eid['ch'].values[index_sampled[recon_step]]
-                mu0_sampled = data_eid['mu0'].values[index_sampled[recon_step]]
-                nu_lc_sampled = data_eid['nu_lc'].values[index_sampled[recon_step]]
-                Z0_sampled_index = Z0.query(f'ch == {ch_sampled}').index
-                if time_mode == "ON":
-                    log_ratio = (s0_sampled - Z0.loc[Z0_sampled_index]['s0'].values) * np.log(expect[ch_sampled] * vertex0[3]) + Z0.loc[Z0_sampled_index]['nu_lc'].values - nu_lc_sampled
-                else:
-                    log_ratio = (s0_sampled - Z0.loc[Z0_sampled_index]['s0'].values) * np.log(expect[ch_sampled] * vertex0[3] / mu0_sampled)
-                if log_ratio > np.log(u_z[recon_step]):
-                    Z0.loc[Z0_sampled_index] = data_eid.loc[index_sampled[recon_step]].values
-                    recon['acceptz'] = 1
+            # 对 z 采样
+            expect = probe.callPE(vertex0)
+            ch, z, s0, nu_lc = next(samples) # 某个通道，无限采
+            # 以 count 为权重，从所有 channel 随机采样的组合
+            offset = offsets[ch]
+            mu0 = mu0s[ch]
+            if time_mode == "ON":
+                T_i = probe.callT(vertex, ch)
+                log_ratio_time = LogLikelihood_Time(T_i, z[:s0] + offset) - LogLikelihood_Time(T_i, z[:s0] + offset)
+                log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3]) + nu_lcs[ch] - nu_lc + log_ratio_time
+            else:
+                log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3] / mu0)
+            if log_ratio > np.log(u[recon_step, 0]):
+                s0s[ch] = s0
+                nu_lcs[ch] = nu_lc
+                zs[ch] = z
 
             # 对位置采样
-            vertex1 = mcmc.Perturb_pos(vertex0, u[recon_step, :3], r_max_E)
+            vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max_E, time_mode)
             ## 边界检查
             if Detector.Boundary(vertex1):
-                Likelihood_vertex1 = LH.LogLikelihood(vertex1, Z0, probe, time_mode, data_mode)
-                if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 3])):
+                Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, time_array, chs, probe, time_mode, data_mode)
+                if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 5])):
                     vertex0[:3] = vertex1[:3]
                     vertex0[-1] = vertex1[-1]
                     if sampling_mode == "EM":
@@ -94,11 +117,11 @@ def reconstruction(data, output, probe, pmt_pos, MC_step, sampling_mode, data_mo
                     
             if sampling_mode == "Gibbs":
                 # 对能量采样
-                vertex2 = mcmc.Perturb_energy(vertex0, u[recon_step, 4])
+                vertex2 = mcmc.Perturb_energy(vertex0, u[recon_step, 6])
                 ## 边界检查
                 if vertex2[3] > 0:
-                    Likelihood_vertex2 = LH.LogLikelihood(vertex2, Z0, probe, time_mode, data_mode)
-                    if ((Likelihood_vertex2 - Likelihood_vertex0) > np.log(u[recon_step, 5])):
+                    Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, time_array, chs, probe, time_mode, data_mode)
+                    if ((Likelihood_vertex2 - Likelihood_vertex0) > np.log(u[recon_step, 7])):
                         vertex0[3] = vertex2[3]
                         Likelihood_vertex0 = Likelihood_vertex2
                         recon['acceptE'] = 1

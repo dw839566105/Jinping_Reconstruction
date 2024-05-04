@@ -24,7 +24,7 @@ class Probe:
         self.coeff_pe = coeff_pe
         self.coeff_time = coeff_time
         self.pmt_pos = pmt_pos
-        self.NPE = np.zeros(chs)
+        self.NPE = np.zeros(chnums)
         self.base_r = None
         self.base_t = None
         self.Ti = None
@@ -56,13 +56,11 @@ class Probe:
         self.Ti = self.base_t[:self.coeff_time.shape[0], firedPMT] @ self.coeff_time @ self.base_r[:self.coeff_time.shape[1]].T
         return self.Ti + vertex[-1]
 
-def Init(Z0, pmt_pos, time_mode, PEchain):
-    pe_array = LH.genPE(Z0)
+def Init(pe_array, time_array, pmt_pos, time_mode):
     vertex = np.zeros(5)
     x_ini = 1.5 * np.sum(np.atleast_2d(pe_array).T*pmt_pos, axis=0) / np.sum(pe_array)
     E_ini = np.sum(pe_array) / npe # npe PE/MeV
     if time_mode == "ON":
-        time_array = LH.genPEt(Z0, PEchain)
         t_ini = np.quantile(time_array, 0.1) # quantile 0.1
         vertex[-1] = t_ini - 27
     vertex[3] = E_ini

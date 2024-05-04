@@ -7,11 +7,8 @@ import argparse
 import h5py
 import numpy as np
 import uproot
-import sys
-sys.path.append('../')
-from Reconstruction.DetectorConfig import shell
+from DetectorConfig import shell
 
-shell = 0.65
 psr = argparse.ArgumentParser()
 psr.add_argument("-e", dest="events", help="list of events")
 psr.add_argument("-o", dest='opt', help="output")

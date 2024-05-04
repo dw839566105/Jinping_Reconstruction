@@ -5,13 +5,11 @@ import h5py
 import fit
 import argparse
 import matplotlib.pyplot as plt
-from plot_basis import plot_fit
+from plot_basis import plot_fit, plot_zxy
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.colors as colors
 import matplotlib.tri as tri
-import sys
-sys.path.append('../')
-from Reconstruction.DetectorConfig import shell
+from DetectorConfig import shell
 
 psr = argparse.ArgumentParser()
 psr.add_argument("-o", dest="opt", type=str, help="output file")

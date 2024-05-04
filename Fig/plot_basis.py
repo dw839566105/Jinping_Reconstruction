@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import fit
-import sys
-sys.path.append('../')
-from Reconstruction.DetectorConfig import shell
+from DetectorConfig import shell
 from matplotlib.backends.backend_pdf import PdfPages
 
 def plot_fit(data, ax, xtitle, ytitle, start, end, unit):

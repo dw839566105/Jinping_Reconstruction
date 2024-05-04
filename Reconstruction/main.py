@@ -36,9 +36,6 @@ parser.add_argument('-n', '--num', dest='num', type=int, default=10,
 parser.add_argument('--sample', dest='sample', type=str, default="EM",
                     help='E sampling method EM/Gibbs')
 
-parser.add_argument('--data', dest='data', type=str, default="sim",
-                    help='data mode sim/raw')
-
 parser.add_argument('--ton', dest='ton', type=str, default="OFF",
                     help='probe_time ON/OFF')
 
@@ -48,17 +45,12 @@ parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10,
 args = parser.parse_args()
 
 # 读入文件
-print("Reading Data")
-data = Read.ReadFile(args.filename, args.sparsify, args.data, args.ton, args.num)
-print("Finished Reading Data")
-PEchain = Read.ReadPEchain(args.sparsify, args.filename)
-print("Finished Reading PEchain")
-pmt_pos = Read.ReadPMT(args.PMT)
+pmt_pos = np.loadtxt(args.PMT)
 print("Finished Reading PMT")
 probe = Detector.LoadProbe(args.probe, args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
 
 # 重建
-Recon.reconstruction(data, args.output, probe, pmt_pos, args.MCstep, args.sample, args.data, args.ton)
+Recon.reconstruction(args.filename, args.sparsify, args.output, probe, pmt_pos, args.MCstep, args.sample, args.ton)
 
 
