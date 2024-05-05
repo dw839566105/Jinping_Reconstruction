@@ -30,7 +30,7 @@ class Probe:
         self.Ti = None
         self.probe_type = "poly"
 
-    def Calc_basis(self, rho, cos_theta, len1, len2): 
+    def Calc_basis(self, rho, cos_theta, len1, len2):
         base_t = legval(cos_theta, len1)
         base_r = legval(np.array([rho,]), len2).flatten()
         return base_r, base_t
@@ -47,16 +47,23 @@ class Probe:
             np.max([self.coeff_pe.shape[1], self.coeff_time.shape[1]]))
 
     def callPE(self, vertex):
+        # 计算 NPE
         self.getbase(vertex)
         self.NPE = np.exp(self.base_t[:self.coeff_pe.shape[0]].T @ self.coeff_pe @ self.base_r[:self.coeff_pe.shape[1]])
         return self.NPE
 
     def callT(self, vertex, firedPMT):
+        # 计算 PEt
         # 调用 callT 都在 callPE 之后，base_r 和 base_t 已被更新，不再重复计算
         self.Ti = self.base_t[:self.coeff_time.shape[0], firedPMT] @ self.coeff_time @ self.base_r[:self.coeff_time.shape[1]].T
         return self.Ti + vertex[-1]
 
 def Init(pe_array, time_array, pmt_pos, time_mode):
+    '''
+    计算初值
+    pe_array: 在当前抽样的 Z 下，各通道接收到光子数。长度为 chnums 的一维数组
+    time_array: 在当前抽样的 Z 下，各触发 PMT 接收到光子的时刻。一维数组
+    '''
     vertex = np.zeros(5)
     x_ini = 1.5 * np.sum(np.atleast_2d(pe_array).T*pmt_pos, axis=0) / np.sum(pe_array)
     E_ini = np.sum(pe_array) / npe # npe PE/MeV
