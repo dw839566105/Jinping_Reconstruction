@@ -10,7 +10,7 @@ import tables
 import mcmc
 import Detector
 from config import *
-from DetectorConfig import E0
+from DetectorConfig import E0, chnums
 from tqdm import tqdm
 import LH
 from fsmp_reader import FSMPreader
