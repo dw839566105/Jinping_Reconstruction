@@ -69,7 +69,7 @@ def Init(pe_array, time_array, pmt_pos, time_mode):
     E_ini = np.sum(pe_array) / npe # npe PE/MeV
     if time_mode == "ON":
         t_ini = np.quantile(time_array, 0.1) # quantile 0.1
-        vertex[-1] = t_ini - 27
+        vertex[-1] = t_ini - T0
     vertex[3] = E_ini
     vertex[:3] = x_ini / shell
     if Boundary(vertex) == False:
