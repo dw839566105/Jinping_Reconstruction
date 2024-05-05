@@ -25,7 +25,7 @@ def LogLikelihood_quantile(y, T_i, tau, ts):
     L = (T_i-y) * (y<T_i) * (1-tau) + (y-T_i) * (y>=T_i) * tau
     return L/ts
 
-def LogLikelihood(vertex, pe_array, time_array, chs, probe, time_mode, data_mode):
+def LogLikelihood(vertex, pe_array, time_array, chs, probe, time_mode):
     expect = probe.callPE(vertex)
     L1 = LogLikelihood_PE(vertex[3], pe_array, expect)
     if time_mode == "OFF":

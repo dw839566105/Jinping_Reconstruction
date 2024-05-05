@@ -71,7 +71,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
         pe_array = genPE(chs, s0s)
         time_array = genTime(zs, s0s, offsets)
         vertex0 = Detector.Init(pe_array, time_array, pmt_pos, time_mode)
-        Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, time_array, chs, probe, time_mode, data_mode)
+        Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, time_array, chs, probe, time_mode)
         init['x'], init['y'], init['z'], init['E'], init['t'] = vertex0
         init['EventID'] = eid
         init.append()
@@ -104,7 +104,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
             vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max_E, time_mode)
             ## 边界检查
             if Detector.Boundary(vertex1):
-                Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, time_array, chs, probe, time_mode, data_mode)
+                Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, time_array, chs, probe, time_mode)
                 if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 5])):
                     vertex0[:3] = vertex1[:3]
                     vertex0[-1] = vertex1[-1]
@@ -121,7 +121,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
                 vertex2 = mcmc.Perturb_energy(vertex0, u[recon_step, 6])
                 ## 边界检查
                 if vertex2[3] > 0:
-                    Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, time_array, chs, probe, time_mode, data_mode)
+                    Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, time_array, chs, probe, time_mode)
                     if ((Likelihood_vertex2 - Likelihood_vertex0) > np.log(u[recon_step, 7])):
                         vertex0[3] = vertex2[3]
                         Likelihood_vertex0 = Likelihood_vertex2
