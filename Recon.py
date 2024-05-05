@@ -8,13 +8,14 @@ import argparse
 from argparse import RawTextHelpFormatter
 import tables
 import mcmc
-import Read
 import Detector
 from config import *
 from DetectorConfig import E0
 from tqdm import tqdm
 import LH
-from fsmp_reader import FSMPreader
+import sys
+sys.path.append('../')
+from FSMP.fsmp_reader import FSMPreader
 
 class DataType(tables.IsDescription):
     '''
@@ -47,7 +48,7 @@ def genTime(zs, s0s, offsets):
         j += s0s
     return time_array
 
-def reconstruction(fsmp, sparsify, output, probe, pmt_pos, MC_step, sampling_mode, time_mode):
+def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sampling_mode, time_mode):
     '''
     reconstruction
     '''
@@ -60,7 +61,8 @@ def reconstruction(fsmp, sparsify, output, probe, pmt_pos, MC_step, sampling_mod
     recon = ReconTable.row
 
     # start reconstruction
-    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, samples in FSMPreader(sparsify, fsmp).rand_iter():
+    eid_start = 0
+    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, samples in tqdm(FSMPreader(sparsify, fsmp).rand_iter()):
         print(f"Start processing eid-{eid}")
 
         # 设定随机数
@@ -131,6 +133,12 @@ def reconstruction(fsmp, sparsify, output, probe, pmt_pos, MC_step, sampling_mod
             recon['Likelihood'] = Likelihood_vertex0
             recon.append()
         print(f"Recon eid-{eid} Done!")
+
+        # 如果 Entries 不为 0，只重建 Entries 个事例
+        eid_start += 1
+        if Entries != 0:
+            if eid_start > Entries - 1:
+                break
 
     # Flush into the output file
     InitTable.flush()

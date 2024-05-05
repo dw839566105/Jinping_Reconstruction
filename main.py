@@ -4,9 +4,9 @@
 '''
 import argparse
 from argparse import RawTextHelpFormatter
-import Read
 import Recon
 import Detector
+import numpy as np
     
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
 parser.add_argument('-f', '--filename', dest='filename', metavar='filename[*.pq]', type=str,
@@ -51,6 +51,6 @@ probe = Detector.LoadProbe(args.probe, args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
 
 # 重建
-Recon.reconstruction(args.filename, args.sparsify, args.output, probe, pmt_pos, args.MCstep, args.sample, args.ton)
+Recon.reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, args.MCstep, args.sample, args.ton)
 
 

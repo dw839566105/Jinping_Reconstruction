@@ -58,7 +58,7 @@ all: Fig/BiPo.pdf
 # 事例重建
 Reconresult/%.h5: $(FSMP)/fsmp/%.pq $(FSMP)/sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
 	mkdir -p $(dir $@)
-	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 10 -m $(MCstep) -o $@ --data raw --sample EM --ton OFF
+	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 0 -m $(MCstep) -o $@ --sample EM --ton OFF
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
