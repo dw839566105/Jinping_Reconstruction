@@ -55,7 +55,7 @@ class Probe:
     def callT(self, vertex, firedPMT):
         # 计算 PEt
         # 调用 callT 都在 callPE 之后，base_r 和 base_t 已被更新，不再重复计算
-        self.Ti = self.base_t[:self.coeff_time.shape[0], firedPMT] @ self.coeff_time @ self.base_r[:self.coeff_time.shape[1]].T
+        self.Ti = self.base_t[:self.coeff_time.shape[0], firedPMT].T @ self.coeff_time @ self.base_r[:self.coeff_time.shape[1]]
         return self.Ti + vertex[-1]
 
 def Init(pe_array, time_array, pmt_pos, time_mode):

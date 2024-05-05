@@ -10,7 +10,7 @@ import tables
 import mcmc
 import Detector
 from config import *
-from DetectorConfig import E0, chnums
+from DetectorConfig import E0, chnums, tau, ts
 from tqdm import tqdm
 import LH
 from fsmp_reader import FSMPreader
@@ -33,12 +33,18 @@ class DataType(tables.IsDescription):
     acceptt = tables.Float32Col(pos=11)
 
 def genPE(chs, s0s):
+    '''
+    取出所有通道的 NPE
+    '''
     pe_array = np.zeros(chnums)
     for i in range(len(chs)):
         pe_array[chs[i]] = s0s[i]
     return pe_array
 
 def genTime(zs, s0s, offsets):
+    '''
+    取出所有通道的 PEt，展开为一维数组
+    '''
     time_array = np.zeros(np.sum(s0s))
     j = 0
     for i, s0 in enumerate(s0s):
@@ -60,8 +66,10 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
 
     # start reconstruction
     eid_start = 0
-    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, sampler in FSMPreader(sparsify, fsmp).rand_iter(MC_step):
+    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, sampler in tqdm(FSMPreader(sparsify, fsmp).rand_iter(MC_step)):
         print(f"Start processing eid-{eid}")
+        # 将 s0s 转换为 int16
+        s0s = s0s.astype('int16')
 
         # 设定随机数
         np.random.seed(eid % 1000000)
@@ -71,7 +79,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
         pe_array = genPE(chs, s0s)
         time_array = genTime(zs, s0s, offsets)
         vertex0 = Detector.Init(pe_array, time_array, pmt_pos, time_mode)
-        Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, time_array, chs, probe, time_mode)
+        Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
         init['x'], init['y'], init['z'], init['E'], init['t'] = vertex0
         init['EventID'] = eid
         init.append()
@@ -86,12 +94,13 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
             # 对 z 采样
             expect = probe.callPE(vertex0)
             ch, z, s0, nu_lc = next(sampler) # 某个通道，无限采
+            s0 = np.int16(s0)
             # 以 count 为权重，从所有 channel 随机采样的组合
             offset = offsets[ch]
             mu0 = mu0s[ch]
             if time_mode == "ON":
-                T_i = probe.callT(vertex, ch)
-                log_ratio_time = LogLikelihood_Time(T_i, z[:s0] + offset) - LogLikelihood_Time(T_i, z[:s0] + offset)
+                T_i = probe.callT(vertex0, ch)
+                log_ratio_time = np.sum(LH.LogLikelihood_quantile(z[:s0] + offset, T_i, tau, ts)) - np.sum(LH.LogLikelihood_quantile(zs[ch][:s0s[ch]] + offset, T_i, tau, ts))
                 log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3]) + nu_lcs[ch] - nu_lc + log_ratio_time
             else:
                 log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3] / mu0)
@@ -104,14 +113,14 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
             vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max_E, time_mode)
             ## 边界检查
             if Detector.Boundary(vertex1):
-                Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, time_array, chs, probe, time_mode)
+                Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
                 if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 5])):
                     vertex0[:3] = vertex1[:3]
                     vertex0[-1] = vertex1[-1]
                     if sampling_mode == "EM":
                         expect = probe.callPE(vertex0)
                         expect[expect == 0] = 1E-6
-                        pe_array = LH.genPE(Z0)
+                        pe_array = genPE(chs, s0s)
                         vertex0[3] = np.sum(pe_array) / np.sum(expect) * E0
                     Likelihood_vertex0 = Likelihood_vertex1
                     recon['acceptr'] = 1
@@ -121,7 +130,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
                 vertex2 = mcmc.Perturb_energy(vertex0, u[recon_step, 6])
                 ## 边界检查
                 if vertex2[3] > 0:
-                    Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, time_array, chs, probe, time_mode)
+                    Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, zs, s0s, offsets, chs, probe, time_mode)
                     if ((Likelihood_vertex2 - Likelihood_vertex0) > np.log(u[recon_step, 7])):
                         vertex0[3] = vertex2[3]
                         Likelihood_vertex0 = Likelihood_vertex2

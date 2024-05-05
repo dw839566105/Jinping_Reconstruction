@@ -4,3 +4,7 @@ chnums = 30
 
 # 探测器边界
 shell = 0.645
+
+# quantitle 参数
+tau = 0.1
+ts = 3
