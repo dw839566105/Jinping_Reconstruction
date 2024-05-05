@@ -41,9 +41,9 @@ def genPE(chs, s0s):
 def genTime(zs, s0s, offsets):
     time_array = np.zeros(np.sum(s0s))
     j = 0
-    for i in range(len(s0s)):
-        time_array[j : j + s0s[i]] = zs[i][:s0s[i]] + offsets[i]
-        j += s0s[i]
+    for i, s0 in enumerate(s0s):
+        time_array[j : j + s0] = zs[i, :s0] + offsets[i]
+        j += s0
     return time_array
 
 def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sampling_mode, time_mode):
