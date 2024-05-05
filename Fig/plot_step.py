@@ -62,6 +62,9 @@ with PdfPages(args.opt) as pp:
             # r3 distribution
             plot_hist(pp, data_r ** 3, "r^3", "steps", "m^3")
 
+            # t distribution
+            plot_hist(pp, data['t'].values, "t", "steps", "ns")
+
             # loglikelihood distribution
             plot_hist(pp, data['Likelihood'].values, "LogLikelihood", "steps", "value")
 
@@ -111,7 +114,7 @@ with PdfPages(args.opt) as pp:
         plot_zxy(pp, data_xy ** 2, data['z'].values)
 
         # Evolution
-        fig, axs = plt.subplots(6, 1, figsize=(25, 30))
+        fig, axs = plt.subplots(7, 1, figsize=(25, 35))
         axs[0].plot(data['E'].values)
         if args.mode == "sim":
             axs[0].axhline(y=truth_data['E'].values, color='g', linestyle='--')
@@ -147,9 +150,16 @@ with PdfPages(args.opt) as pp:
         axs[4].set_ylabel('z / m')
         axs[4].set_xlabel('step')
 
-        axs[5].plot(data['Likelihood'].values)
-        axs[5].set_title(f'LogLikelihood Evolution - Event{eid}')
-        axs[5].set_ylabel('LogLikelihood')
+        axs[5].plot(data['t'].values)
+        if args.mode == "sim":
+            axs[5].axhline(y=truth_data['t'].values, color='g', linestyle='--')
+        axs[5].set_title(f't Evolution - Event{eid}')
+        axs[5].set_ylabel('t / ns')
         axs[5].set_xlabel('step')
+
+        axs[6].plot(data['Likelihood'].values)
+        axs[6].set_title(f'LogLikelihood Evolution - Event{eid}')
+        axs[6].set_ylabel('LogLikelihood')
+        axs[6].set_xlabel('step')
         pp.savefig(fig)
         plt.close(fig)
