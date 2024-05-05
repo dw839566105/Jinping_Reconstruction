@@ -67,7 +67,6 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
     # start reconstruction
     eid_start = 0
     for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, sampler in tqdm(FSMPreader(sparsify, fsmp).rand_iter(MC_step)):
-        print(f"Start processing eid-{eid}")
         # 将 s0s 转换为 int16
         s0s = s0s.astype('int16')
 
@@ -139,7 +138,6 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
             recon['x'], recon['y'], recon['z'], recon['E'], recon['t'] = vertex0
             recon['Likelihood'] = Likelihood_vertex0
             recon.append()
-        print(f"Recon eid-{eid} Done!")
 
         # 如果 Entries 不为 0，只重建 Entries 个事例
         eid_start += 1
