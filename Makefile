@@ -50,13 +50,12 @@ coeff_PE_temp:=/JNE/coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
 PMT:=PMT.txt
 MCstep:=10000
-FSMP:=/JNE/eternity/FSMP
 Simulation:=/JNE/eternity/Simulation/h5
-reconfiles:=$(patsubst $(FSMP)/fsmp/%.pq, Reconresult/%.h5, $(wildcard $(FSMP)/fsmp/BiPo/run00000257/*.pq))
+reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
 all: Fig/BiPo.pdf
 
 # 事例重建
-Reconresult/%.h5: $(FSMP)/fsmp/%.pq $(FSMP)/sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
+tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
 	mkdir -p $(dir $@)
 	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 0 -m $(MCstep) -o $@ --sample EM --ton OFF
 
