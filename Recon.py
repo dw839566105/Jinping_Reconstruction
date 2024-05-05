@@ -13,9 +13,7 @@ from config import *
 from DetectorConfig import E0
 from tqdm import tqdm
 import LH
-import sys
-sys.path.append('../')
-from FSMP.fsmp_reader import FSMPreader
+from fsmp_reader import FSMPreader
 
 class DataType(tables.IsDescription):
     '''
@@ -62,7 +60,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
 
     # start reconstruction
     eid_start = 0
-    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, samples in tqdm(FSMPreader(sparsify, fsmp).rand_iter()):
+    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, sampler in FSMPreader(sparsify, fsmp).rand_iter(MC_step):
         print(f"Start processing eid-{eid}")
 
         # 设定随机数
@@ -87,7 +85,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
 
             # 对 z 采样
             expect = probe.callPE(vertex0)
-            ch, z, s0, nu_lc = next(samples) # 某个通道，无限采
+            ch, z, s0, nu_lc = next(sampler) # 某个通道，无限采
             # 以 count 为权重，从所有 channel 随机采样的组合
             offset = offsets[ch]
             mu0 = mu0s[ch]
