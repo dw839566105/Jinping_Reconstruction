@@ -6,11 +6,8 @@ scan:=$(shell seq 0.01 0.01 $(Radius)) # different radius
 scan_compact:=$(shell seq 0.01 0.01 0.55) $(shell seq 0.55 0.002 0.644) # compact radius for calibration
 duplicate:=$(shell seq -w 1 30) # for spherical simulation data
 duplicate_v:=$(shell seq -w 60 99) # for validate data
-path:=/mnt/stage/douwei/JP_1t_github
-geo:=Simulation/DetectorStructure/1t
-
-.PHONY: all
-all: recon
+path:=JP_1t
+geo:=$(G__JSAPSYS)/Simulation/DetectorStructure/1t
 
 sim: shell point/x point/y point/z ball
 recon: recon_shell recon_x recon_y recon_z recon_ball
@@ -27,7 +24,7 @@ vset:=$(duplicate_v:%=$(path)/concat/ball/$(energy)/%.h5)
 recon_shell: $(scan_compact:%=$(path)/recon/shell/$(energy)/%.h5)
 recon_x: $(scan:%=$(path)/recon/point/x/$(energy)/%.h5)
 recon_y: $(scan:%=$(path)/recon/point/y/$(energy)/%.h5)
-recon_z: $(scan:%=$(path)/recon/point/z/$(energy)/%.h5)
+recon_z: $(scan:%=Reconresult/root/point/z/$(energy)/%.h5)
 recon_ball: $(duplicate:%=$(path)/recon/ball/$(energy)/%.h5)
 
 
@@ -46,6 +43,67 @@ coeff_dLeg_pdf: $(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.pdf $(path)/coe
 coeff_dLeg_csv: $(path)/coeff/dLegendre/PE/$(energy)/shell/40/30.csv $(path)/coeff/dLegendre/PE/$(energy)/shell/60/20.csv
 coeff_Leg:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).csv $(path)/coeff/Legendre/Gather/Time/$(energy)/$(o1)/$(o2).h5))
 coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Legendre/Gather/PE/$(energy)/$(o1)/$(o2).pdf))
+
+################# Reconstruction ############################
+# probe 源自 douwei
+coeff_PE_temp:=/JNE/coeff/Legendre/Gather/PE/2/80/40.h5
+coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
+PMT:=PMT.txt
+MCstep:=10000
+Simulation:=/JNE/eternity/Simulation/h5
+reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
+all: Fig/BiPo.pdf
+
+# 事例重建
+tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
+	mkdir -p $(dir $@)
+	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 0 -m $(MCstep) -o $@ --sample EM --ton ON
+
+# 生成 run0257 的 BiPo 事例列表和已有重建结果图
+BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
+Bi214_0257.txt: $(BiPo0257)
+	python3 pick.py -i $^ -o $@ -r run0000257.pdf -c run0000257_r3cut.pdf
+
+# BiPo 能谱和顶点分布
+Fig/BiPo.h5: $(BiPo0257) $(reconfiles) Bi214_0257.txt
+	mkdir -p $(dir $@)
+	python3 Fig/pre_bipo.py -b $(BiPo0257) -r $(reconfiles) -s $(MCstep) -e Bi214_0257.txt -o $@
+
+Fig/BiPo.pdf: Fig/BiPo.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_bipo.py $^ -o $@
+
+# 单事例不同步骤重建结果分布图
+Fig/steps/%.pdf: tvE/%.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch OFF --mode raw
+
+## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
+# 球内均匀
+Fig/sim/ball/pre.h5: $(simrecon) $(simrecont) $(simroot)
+	mkdir -p $(dir $@)
+	python3 Fig/pre_sim.py -i $(simrecon) -w $(simrecont) -t $(simroot) -o $@
+# z 轴均匀
+Fig/sim/pointz/pre.h5: $(simreconz) $(simrootz)
+	mkdir -p $(dir $@)
+	python3 Fig/pre_sim.py -i $(simreconz) -t $(simrootz) -o $@
+
+# alpha/ele 波形重建
+Fig/sim/%.h5: JP_1t/root/%.root Reconresult/sim/%_stack.h5 Reconresult/sim/%_stack_t.h5 Reconresult/sim/%_step.h5 Reconresult/sim/%_step_t.h5 
+	mkdir -p $(dir $@)
+	python3 Fig/pre_sim.py --truth $< --stack $(word 2, $^) --stackt $(word 3, $^) --step $(word 4, $^) --stept $(word 5, $^) -o $@
+
+Fig/%.pdf: Fig/%.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_sim.py $^ -o $@
+
+# time profile
+profile/%.stat: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
+	mkdir -p $(dir $@)
+	python3 -m cProfile -o $@ main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o profile/$*.h5
+
+profile/%.svg: profile/%.stat
+	gprof2dot -f pstats $^ | dot -Tsvg -o $@
 
 ################# generate macro files ######################
 $(path)/mac/shell/$(energy)/%.mac: Simulation/macro/example_shell.mac
@@ -82,11 +140,6 @@ $(path)/h5/%.h5: $(path)/root/%.root
 $(path)/concat/%.h5: $(path)/h5/%.h5
 	mkdir -p $(dir $@)
 	python3 Simulation/concat.py $^ -o $@ --pmt PMT.txt > $@.log
-
-################# Reconstruction ############################
-$(path)/recon/%.h5: $(path)/root/%.root $(coeff_PE) $(coeff_time)
-	mkdir -p $(dir $@)
-	python3 Reconstruction/main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o $@ > $@.log
 
 ############## Different Calib models  ######################
 ## varying-coefficient method 
