@@ -22,7 +22,7 @@ eids = pd.read_csv(args.events, sep='\s+', names=("particle", "run", "EventID", 
 eids['particle'] = eids['particle'].replace({'alpha': 0, 'beta': 1})
 eids = eids[['particle', 'EventID']].drop_duplicates()
 
-def read_recon(inputfiles, connect):
+def read_recon(inputfiles):
     print("read recon")
     result_mcmc = pd.DataFrame(columns=['EventID', 'step', 'x', 'y', 'z', 'E', 't', 'Likelihood', 'r'])
     for f in range(len(inputfiles)):
@@ -31,9 +31,9 @@ def read_recon(inputfiles, connect):
             # burn 前 3/5
             recon = recon[recon['step'] > (args.step / 5 * 3)]
             recon_data = recon.groupby('EventID').mean().reset_index()
-            recon['x'] = recon['x'].apply(lambda x: x * shell)
-            recon['y'] = recon['y'].apply(lambda x: x * shell)
-            recon['z'] = recon['z'].apply(lambda x: x * shell)
+            recon_data['x'] = recon_data['x'].apply(lambda x: x * shell)
+            recon_data['y'] = recon_data['y'].apply(lambda x: x * shell)
+            recon_data['z'] = recon_data['z'].apply(lambda x: x * shell)
             recon_data['r'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2 + recon_data['z'].values**2)
             recon_data['xy'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2)
             result_mcmc = pd.concat([result_mcmc, recon_data])

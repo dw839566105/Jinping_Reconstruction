@@ -111,7 +111,7 @@ with PdfPages(args.opt) as pp:
             plt.close(fig)
         
         # z-xy 分布
-        plot_zxy(pp, data_xy ** 2, data['z'].values)
+        plot_zxy(pp, data_xy ** 2, data['z'].values, "recon")
 
         # Evolution
         fig, axs = plt.subplots(7, 1, figsize=(25, 35))

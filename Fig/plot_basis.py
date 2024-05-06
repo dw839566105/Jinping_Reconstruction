@@ -28,14 +28,11 @@ def plot_hist(pp, data, xtitle, ytitle, unit):
     pp.savefig(fig)
     plt.close(fig)
 
-def plot_zxy(pp, data1, data2):
+def plot_zxy(pp, data1, data2, title):
     fig, ax = plt.subplots()
-    h = ax.hist2d(data1, data2, bins = 100, cmap='Blues')
+    h = ax.hist2d(data1, data2, bins = 100, range=[[0,shell**2],[-shell,shell]], cmap='Blues')
     fig.colorbar(h[3], ax=ax)
-    plt.axvline(x=shell**2, color='r', linestyle='--')
-    plt.axhline(y=-shell, color='r', linestyle='--')
-    plt.axhline(y=shell, color='r', linestyle='--')
-    ax.set_title(f'z-x^2+y^2')
+    ax.set_title(f'{title}:z-x^2+y^2')
     ax.set_xlabel('x^2 + y^2 / m^2')
     ax.set_ylabel('z / m')
     pp.savefig(fig)

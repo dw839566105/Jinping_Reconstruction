@@ -67,11 +67,11 @@ Bi214_0257.txt: $(BiPo0257)
 # BiPo 能谱和顶点分布
 Fig/BiPo.h5: $(BiPo0257) $(reconfiles) Bi214_0257.txt
 	mkdir -p $(dir $@)
-	python3 Fig/pre_bipo.py -b $(BiPo0257) -r $(reconfiles) -s $(MCstep) -e Bi214_0257.txt
+	python3 Fig/pre_bipo.py -b $(BiPo0257) -r $(reconfiles) -s $(MCstep) -e Bi214_0257.txt -o $@
 
 Fig/BiPo.pdf: Fig/BiPo.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_recon.py $^ -o $@
+	python3 Fig/plot_bipo.py $^ -o $@
 
 # 单事例不同步骤重建结果分布图
 Fig/steps/%.pdf: tvE/%.h5
