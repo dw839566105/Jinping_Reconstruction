@@ -30,7 +30,9 @@ beta_recon = beta_recon.sort_values(by=['EventID'])
 
 with PdfPages(args.opt) as pp:
     # r 的接收率
+    plot_hist(pp, recon['acceptz'].values, "acceptr", "Entries", "ratio")
     plot_hist(pp, recon['acceptr'].values, "acceptr", "Entries", "ratio")
+    plot_hist(pp, recon['acceptt'].values, "acceptr", "Entries", "ratio")
     plot_scatter(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", "MeV", "ratio")
     plot_hist2d(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", 0.5, 5, 0, 0.7, "MeV", "ratio", 50)
 

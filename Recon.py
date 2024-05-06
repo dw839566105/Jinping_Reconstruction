@@ -109,30 +109,46 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
                 zs[ch] = z
 
             # 对位置采样
-            vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max_E, time_mode)
+            vertex1 = mcmc.Perturb_pos(vertex0, u[recon_step, 1:4], r_max_E)
             ## 边界检查
             if Detector.Boundary(vertex1):
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
-                if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 5])):
+                if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 4])):
                     vertex0[:3] = vertex1[:3]
-                    vertex0[-1] = vertex1[-1]
-                    if sampling_mode == "EM":
-                        expect = probe.callPE(vertex0)
-                        expect[expect == 0] = 1E-6
-                        pe_array = genPE(chs, s0s)
-                        vertex0[3] = np.sum(pe_array) / np.sum(expect) * E0
                     Likelihood_vertex0 = Likelihood_vertex1
                     recon['acceptr'] = 1
-                    
-            if sampling_mode == "Gibbs":
-                # 对能量采样
-                vertex2 = mcmc.Perturb_energy(vertex0, u[recon_step, 6])
+
+            if time_mode == "ON":
+                # 对时间采样
+                vertex1 = mcmc.Perturb_T(vertex0, u[recon_step, 5])
                 ## 边界检查
-                if vertex2[3] > 0:
-                    Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, zs, s0s, offsets, chs, probe, time_mode)
-                    if ((Likelihood_vertex2 - Likelihood_vertex0) > np.log(u[recon_step, 7])):
-                        vertex0[3] = vertex2[3]
-                        Likelihood_vertex0 = Likelihood_vertex2
+                if Detector.Boundary(vertex1):
+                    Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+                    if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 6])):
+                        vertex0[-1] = vertex1[-1]
+                        Likelihood_vertex0 = Likelihood_vertex1
+                        recon['acceptt'] = 1
+
+            # 计算能量
+            if sampling_mode == "EM":
+                if time_mode == "ON":
+                    change = recon['acceptt'] + recon['acceptr']
+                else:
+                    change = recon['acceptr']
+                if change > 0:
+                    expect = probe.callPE(vertex0)
+                    expect[expect == 0] = 1E-6
+                    pe_array = genPE(chs, s0s)
+                    vertex0[3] = np.sum(pe_array) / np.sum(expect) * E0
+            else:
+                # 对能量采样
+                vertex3 = mcmc.Perturb_energy(vertex0, u[recon_step, 7])
+                ## 边界检查
+                if vertex3[3] > 0:
+                    Likelihood_vertex3 = LH.LogLikelihood(vertex3, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+                    if ((Likelihood_vertex3 - Likelihood_vertex0) > np.log(u[recon_step, 8])):
+                        vertex0[3] = vertex3[3]
+                        Likelihood_vertex0 = Likelihood_vertex3
                         recon['acceptE'] = 1
 
             recon['x'], recon['y'], recon['z'], recon['E'], recon['t'] = vertex0

@@ -24,7 +24,7 @@ eids = eids[['particle', 'EventID']].drop_duplicates()
 
 def read_recon(inputfiles):
     print("read recon")
-    result_mcmc = pd.DataFrame(columns=['EventID', 'step', 'x', 'y', 'z', 'E', 't', 'Likelihood', 'acceptr', 'r', 'xy'])
+    result_mcmc = pd.DataFrame(columns=['EventID', 'step', 'x', 'y', 'z', 'E', 't', 'Likelihood', 'acceptr', 'acceptt', 'acceptz', 'r', 'xy'])
     for f in range(len(inputfiles)):
         with h5py.File(inputfiles[f],"r") as ipt:
             recon = pd.DataFrame(ipt['Recon'][:])
