@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import fit
 from DetectorConfig import shell, npe
-from plot_basis import plot_fit_fig, plot_zxy, plot_hist2d
+from plot_basis import plot_fit_fig, plot_zxy, plot_hist2d, plot_scatter, plot_hist
 
 psr = argparse.ArgumentParser()
 psr.add_argument("-o", dest="opt", type=str, help="output file")
@@ -29,6 +29,11 @@ alpha_recon = alpha_recon.sort_values(by=['EventID'])
 beta_recon = beta_recon.sort_values(by=['EventID'])
 
 with PdfPages(args.opt) as pp:
+    # r 的接收率
+    plot_hist(pp, recon['acceptr'].values, "acceptr", "Entries", "ratio")
+    plot_scatter(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", "MeV", "ratio")
+    plot_hist2d(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", 0.5, 5, 0, 0.7, "MeV", "ratio", 50)
+
     # alpha plot
     ## energy distribution
     alpha_bcE = plot_fit_fig(pp, alpha_bc['E'].values / npe, "alpha_BC-E", "Entries", 0, 10, "MeV")
