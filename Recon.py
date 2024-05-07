@@ -52,7 +52,7 @@ def genTime(zs, s0s, offsets):
         j += s0
     return time_array
 
-def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sampling_mode, time_mode):
+def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sampling_mode, time_mode, record_mode):
     '''
     reconstruction
     '''
@@ -63,6 +63,9 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
     init = InitTable.row
     ReconTable = h5file.create_table(group, "Recon", DataType, "Recon")
     recon = ReconTable.row
+    if record_mode == "ON":
+        SampleTable = h5file.create_table(group, "Sample", DataType, "Sample")
+        sample = SampleTable.row
 
     # start reconstruction
     eid_start = 0
@@ -82,9 +85,6 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
         init['x'], init['y'], init['z'], init['E'], init['t'] = vertex0
         init['EventID'] = eid
         init.append()
-
-        # 根据能量调整 r 晃动步长
-        r_max_E = r_max / np.clip(np.sqrt(vertex0[3]), 1, None)
 
         for recon_step in range(MC_step):
             recon['EventID'] = eid
@@ -107,12 +107,21 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
                 s0s[ch] = s0
                 nu_lcs[ch] = nu_lc
                 zs[ch] = z
+                Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+                recon['acceptz'] = 1
 
             # 对位置采样
-            vertex1 = mcmc.Perturb_pos(vertex0, u[recon_step, 1:4], r_max_E)
+            vertex1 = mcmc.Perturb_pos(vertex0, u[recon_step, 1:4], r_max)
             ## 边界检查
             if Detector.Boundary(vertex1):
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+                if record_mode == "ON":
+                    sample['EventID'] = eid
+                    sample['step'] = recon_step
+                    sample['x'], sample['y'], sample['z'], sample['E'], sample['t'] = vertex1
+                    sample['Likelihood'] = Likelihood_vertex1
+                    sample.append()
+
                 if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 4])):
                     vertex0[:3] = vertex1[:3]
                     Likelihood_vertex0 = Likelihood_vertex1
@@ -140,6 +149,8 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
                     expect[expect == 0] = 1E-6
                     pe_array = genPE(chs, s0s)
                     vertex0[3] = np.sum(pe_array) / np.sum(expect) * E0
+                    Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+
             else:
                 # 对能量采样
                 vertex3 = mcmc.Perturb_energy(vertex0, u[recon_step, 7])
@@ -164,5 +175,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
     # Flush into the output file
     InitTable.flush()
     ReconTable.flush() # 重建结果
+    if record_mode == "ON":
+        SampleTable.flush()
     h5file.close()
 
