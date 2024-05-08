@@ -41,18 +41,18 @@ def genPE(chs, s0s):
         pe_array[chs[i]] = s0s[i]
     return pe_array
 
-def genTime(zs, s0s, offsets):
+def genTime(zs, s0s, offsets, T_i):
     '''
     取出所有通道的 PEt，展开为一维数组
     '''
     time_array = np.zeros(np.sum(s0s))
     j = 0
     for i, s0 in enumerate(s0s):
-        time_array[j : j + s0] = zs[i, :s0] + offsets[i]
+        time_array[j : j + s0] = zs[i, :s0] + offsets[i] - T_i[i]
         j += s0
     return time_array
 
-def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sampling_mode, time_mode, record_mode):
+def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, time_mode, record_mode):
     '''
     reconstruction
     '''
@@ -79,7 +79,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
     
         # 给出 vertex, LogLikelihhood 的初值
         pe_array = genPE(chs, s0s)
-        time_array = genTime(zs, s0s, offsets)
+        time_array = genTime(zs, s0s, offsets, np.zeros(len(s0s)))
         vertex0 = Detector.Init(pe_array, time_array, pmt_pos, time_mode)
         Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
         init['x'], init['y'], init['z'], init['E'], init['t'] = vertex0
@@ -112,8 +112,20 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
 
             # 对位置采样
             vertex1 = mcmc.Perturb_pos(vertex0, u[recon_step, 1:4], r_max)
-            ## 边界检查
-            if Detector.Boundary(vertex1):
+
+            # EM 计算 E
+            expect = probe.callPE(vertex0)
+            expect[expect == 0] = 1E-6
+            pe_array = genPE(chs, s0s)
+            vertex0[3] = np.sum(pe_array) / np.sum(expect) * E0
+
+            # EM 计算 t
+            T_i = probe.callT(vertex0, chs)
+            time_array = genTime(zs, s0s, offsets, T_i)
+            vertex0[-1] = np.quantile(time_array, tau)
+            
+            # r 采样接收检查
+            if Detector.Boundary(vertex1): ## 边界检查
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
                 if record_mode == "ON":
                     sample['EventID'] = eid
@@ -126,41 +138,6 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, sam
                     vertex0[:3] = vertex1[:3]
                     Likelihood_vertex0 = Likelihood_vertex1
                     recon['acceptr'] = 1
-
-            if time_mode == "ON":
-                # 对时间采样
-                vertex1 = mcmc.Perturb_T(vertex0, u[recon_step, 5])
-                ## 边界检查
-                if Detector.Boundary(vertex1):
-                    Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
-                    if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 6])):
-                        vertex0[-1] = vertex1[-1]
-                        Likelihood_vertex0 = Likelihood_vertex1
-                        recon['acceptt'] = 1
-
-            # 计算能量
-            if sampling_mode == "EM":
-                if time_mode == "ON":
-                    change = recon['acceptt'] + recon['acceptr']
-                else:
-                    change = recon['acceptr']
-                if change > 0:
-                    expect = probe.callPE(vertex0)
-                    expect[expect == 0] = 1E-6
-                    pe_array = genPE(chs, s0s)
-                    vertex0[3] = np.sum(pe_array) / np.sum(expect) * E0
-                    Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
-
-            else:
-                # 对能量采样
-                vertex3 = mcmc.Perturb_energy(vertex0, u[recon_step, 7])
-                ## 边界检查
-                if vertex3[3] > 0:
-                    Likelihood_vertex3 = LH.LogLikelihood(vertex3, pe_array, zs, s0s, offsets, chs, probe, time_mode)
-                    if ((Likelihood_vertex3 - Likelihood_vertex0) > np.log(u[recon_step, 8])):
-                        vertex0[3] = vertex3[3]
-                        Likelihood_vertex0 = Likelihood_vertex3
-                        recon['acceptE'] = 1
 
             recon['x'], recon['y'], recon['z'], recon['E'], recon['t'] = vertex0
             recon['Likelihood'] = Likelihood_vertex0
