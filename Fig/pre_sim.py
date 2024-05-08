@@ -17,7 +17,7 @@ psr.add_argument("-s", dest="step", type=int, help="MC step")
 args = psr.parse_args()
 
 def read_truth(inputfiles):
-    result_truth = pd.DataFrame(columns=['FileNo', 'EventID', 'x', 'y', 'z', 'E', 'r', 'xy'])
+    result_truth = pd.DataFrame(columns=['FileNo', 'EventID', 'x', 'y', 'z', 'NPE', 'r', 'xy'])
     for f in range(inputfiles):
         with uproot.open(inputfiles[f]) as ipt:
             info = ipt['SimTriggerInfo']
@@ -29,12 +29,12 @@ def read_truth(inputfiles):
             xy = x**2 + y**2
             TriggerNo = np.array(info['TriggerNo'].array()).flatten()
             NPE = [len(sublist) for sublist in PMTID]
-            truth = pd.DataFrame({"EventID":TriggerNo, "x":x, "y":y, "z":z, "E":NPE, "r":r, "xy":xy})
+            truth = pd.DataFrame({"EventID":TriggerNo, "x":x, "y":y, "z":z, "NPE":NPE, "r":r, "xy":xy})
             truth.insert(0, 'FileNo', f)
             result_truth = pd.concat([result_truth, truth])
     result_truth['EventID'] = result_truth['EventID'].astype('int')
     result_truth['FileNo'] = result_truth['FileNo'].astype('int')
-    result_truth['E'] = result_truth['E'].astype('int')
+    result_truth['NPE'] = result_truth['NPE'].astype('int')
     return result_truth
 
 def read_recon(inputfiles):

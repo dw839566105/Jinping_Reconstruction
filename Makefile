@@ -50,8 +50,11 @@ coeff_PE_temp:=/JNE/coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
 PMT:=PMT.txt
 MCstep:=10000
-Simulation:=/JNE/eternity/Simulation/h5
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
+simrootball:=
+simrootz:=
+simreconball:=
+simreconz:=
 all: Fig/BiPo.pdf
 
 # 事例重建
@@ -80,20 +83,15 @@ Fig/steps/%.pdf: tvE/%.h5
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀
-Fig/sim/ball/pre.h5: $(simrecon) $(simrecont) $(simroot)
+Fig/sim/ball/pre.h5: $(simreconball) $(simrootball)
 	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py -i $(simrecon) -w $(simrecont) -t $(simroot) -o $@
+	python3 Fig/pre_sim.py -r $(simreconball) -t $(simroot) -s $(MCstep) -o $@
 # z 轴均匀
 Fig/sim/pointz/pre.h5: $(simreconz) $(simrootz)
 	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py -i $(simreconz) -t $(simrootz) -o $@
+	python3 Fig/pre_sim.py -r $(simreconz) -t $(simroot) -s $(MCstep) -o $@
 
-# alpha/ele 波形重建
-Fig/sim/%.h5: JP_1t/root/%.root Reconresult/sim/%_stack.h5 Reconresult/sim/%_stack_t.h5 Reconresult/sim/%_step.h5 Reconresult/sim/%_step_t.h5 
-	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py --truth $< --stack $(word 2, $^) --stackt $(word 3, $^) --step $(word 4, $^) --stept $(word 5, $^) -o $@
-
-Fig/%.pdf: Fig/%.h5
+Fig/sim/%.pdf: Fig/sim/%.h5
 	mkdir -p $(dir $@)
 	python3 Fig/plot_sim.py $^ -o $@
 
