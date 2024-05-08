@@ -51,11 +51,11 @@ coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
 PMT:=PMT.txt
 MCstep:=10000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
-simrootball:=
-simrootz:=
-simreconball:=
-simreconz:=
-all: Fig/BiPo.pdf
+simrootball:=$(patsubst fsmp/%.pq, /JNE/resolution/%.root, $(wildcard fsmp/ball/2/*.pq))
+simrootz:=$(patsubst fsmp/%.pq, /JNE/resolution/%.root, $(wildcard fsmp/point/z/2/*.pq))
+simreconball:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/ball/2/*.pq))
+simreconz:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/point/z/2/*.pq))
+all: Fig/BiPo.pdf Fig/sim/ball.pdf Fig/sim/pointz.pdf
 
 # 事例重建
 tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
@@ -83,13 +83,13 @@ Fig/steps/%.pdf: tvE/%.h5
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀
-Fig/sim/ball/pre.h5: $(simreconball) $(simrootball)
+Fig/sim/ball.h5: $(simreconball) $(simrootball)
 	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py -r $(simreconball) -t $(simroot) -s $(MCstep) -o $@
+	python3 Fig/pre_sim.py -r $(simreconball) -t $(simrootball) -s $(MCstep) -o $@
 # z 轴均匀
-Fig/sim/pointz/pre.h5: $(simreconz) $(simrootz)
+Fig/sim/pointz.h5: $(simreconz) $(simrootz)
 	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py -r $(simreconz) -t $(simroot) -s $(MCstep) -o $@
+	python3 Fig/pre_sim.py -r $(simreconz) -t $(simrootz) -s $(MCstep) -o $@
 
 Fig/sim/%.pdf: Fig/sim/%.h5
 	mkdir -p $(dir $@)
