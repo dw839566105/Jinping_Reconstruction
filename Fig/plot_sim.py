@@ -23,7 +23,7 @@ recon = recon.sort_values(by=['FileNo', 'EventID'])
  
 with PdfPages(args.opt) as pp:
     # 能量
-    truthE = plot_fit_fig(pp, truth['E'].values, "truth-NPE", "Entries", 50, 200, "NPE")
+    truthE = plot_fit_fig(pp, truth['NPE'].values, "truth-NPE", "Entries", 50, 200, "NPE")
     reconE = plot_fit_fig(pp, recon['E'].values, "recon-E", "Entries", 0, 10, "MeV")
 
     # vertex
@@ -68,7 +68,7 @@ with PdfPages(args.opt) as pp:
     plot_hist2d(pp, truth['z'].values, recon['z'].values, "truth z", "recon z", -shell, shell, -shell, shell, "m", "m", 50)
     plot_hist2d(pp, truth['r'].values, recon['r'].values, "truth r", "recon r", -shell, shell, -shell, shell, "m", "m", 50)
     plot_hist2d(pp, truth['xy'].values ** 2, recon['xy'].values ** 2, "truth x^2+y^2", "recon x^2+y^2", 0, shell**2, 0, shell**2, "m^2", "m^2", 50)
-    plot_hist2d(pp, truth['r'].values ** 3, recon['r'].values ** 3, "truth r^3", "recon r^3", -shell**3, shell**3, -shell**3, shell**3, "m^3", "m^3", 50)
+    plot_hist2d(pp, truth['r'].values ** 3, recon['r'].values ** 3, "truth r^3", "recon r^3", 0, shell**3, 0, shell**3, "m^3", "m^3", 50)
 
 
 

@@ -55,6 +55,10 @@ simrootball:=$(patsubst fsmp/%.pq, /JNE/resolution/%.root, $(wildcard fsmp/ball/
 simrootz:=$(patsubst fsmp/%.pq, /JNE/resolution/%.root, $(wildcard fsmp/point/z/2/*.pq))
 simreconball:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/ball/2/*.pq))
 simreconz:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/point/z/2/*.pq))
+
+# 03 05 文件异常, 暂时去除观察其他事例
+simreconball:=$(filter-out tvE/ball/2/03.h5 tvE/ball/2/05.h5, $(simreconball))
+simrootball:=$(filter-out /JNE/resolution/ball/2/03.root /JNE/resolution/ball/2/05.root, $(simrootball))
 all: Fig/BiPo.pdf Fig/sim/ball.pdf Fig/sim/pointz.pdf
 
 # 事例重建

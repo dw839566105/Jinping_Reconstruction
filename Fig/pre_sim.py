@@ -18,7 +18,7 @@ args = psr.parse_args()
 
 def read_truth(inputfiles):
     result_truth = pd.DataFrame(columns=['FileNo', 'EventID', 'x', 'y', 'z', 'NPE', 'r', 'xy'])
-    for f in range(inputfiles):
+    for f in range(len(inputfiles)):
         with uproot.open(inputfiles[f]) as ipt:
             info = ipt['SimTriggerInfo']
             PMTID = info['PEList.PMTId'].array()
@@ -45,9 +45,9 @@ def read_recon(inputfiles):
             # burn 前 3/5
             recon = recon[recon['step'] > (args.step / 5 * 3)]
             recon_data = recon.groupby('EventID').mean().reset_index()
-            recon['x'] = recon['x'].apply(lambda x: x * shell)
-            recon['y'] = recon['y'].apply(lambda x: x * shell)
-            recon['z'] = recon['z'].apply(lambda x: x * shell)
+            recon_data['x'] = recon_data['x'].apply(lambda x: x * shell)
+            recon_data['y'] = recon_data['y'].apply(lambda x: x * shell)
+            recon_data['z'] = recon_data['z'].apply(lambda x: x * shell)
             recon_data['r'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2 + recon_data['z'].values**2)
             recon_data['xy'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2)
             recon_data.insert(0, 'FileNo', f)
