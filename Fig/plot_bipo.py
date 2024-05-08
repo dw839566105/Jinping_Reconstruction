@@ -30,9 +30,9 @@ beta_recon = beta_recon.sort_values(by=['EventID'])
 
 with PdfPages(args.opt) as pp:
     # r 的接收率
-    plot_hist(pp, recon['acceptz'].values, "acceptr", "Entries", "ratio")
+    plot_hist(pp, recon['acceptz'].values, "acceptz", "Entries", "ratio")
     plot_hist(pp, recon['acceptr'].values, "acceptr", "Entries", "ratio")
-    plot_hist(pp, recon['acceptt'].values, "acceptr", "Entries", "ratio")
+    plot_hist(pp, recon['acceptt'].values, "acceptt", "Entries", "ratio")
     plot_scatter(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", "MeV", "ratio")
     plot_hist2d(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", 0.5, 5, 0, 0.7, "MeV", "ratio", 50)
 
@@ -87,4 +87,10 @@ with PdfPages(args.opt) as pp:
     # prompt delayed
     plot_hist2d(pp, alpha_bc['E'].values / npe, beta_bc['E'].values / npe, "bc-alpha energy", "bc-beta energy", 0, 5, 0, 5, "MeV", "MeV", 50)
     plot_hist2d(pp, alpha_recon['E'].values, beta_recon['E'].values, "recon-alpha energy", "recon-beta energy", 0, 5, 0, 5, "MeV", "MeV", 50)
+
+    # distance plot
+    distance_bc = np.sqrt((alpha_bc['x'].values - beta_bc['x'].values) ** 2 + (alpha_bc['y'].values - beta_bc['y'].values) ** 2 + (alpha_bc['z'].values - beta_bc['z'].values) ** 2)
+    distance_recon = np.sqrt((alpha_recon['x'].values - beta_recon['x'].values) ** 2 + (alpha_recon['y'].values - beta_recon['y'].values) ** 2 + (alpha_recon['z'].values - beta_recon['z'].values) ** 2)
+    distance_bc_fit = plot_fit_fig(pp, distance_bc, "distance-BC", "Entries", 0, shell, "m")
+    distance_recon_fit = plot_fit_fig(pp, distance_recon, "distance-recon", "Entries", 0, shell, "m")
 
