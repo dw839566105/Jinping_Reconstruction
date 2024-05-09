@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import fit
 from DetectorConfig import shell, npe
-from plot_basis import plot_fit_fig, plot_zxy, plot_hist2d, plot_scatter, plot_hist
+from plot_basis import *
 
 psr = argparse.ArgumentParser()
 psr.add_argument("-o", dest="opt", type=str, help="output file")
@@ -32,14 +32,34 @@ with PdfPages(args.opt) as pp:
     # r 的接收率
     plot_hist(pp, recon['acceptz'].values, "acceptz", "Entries", "ratio")
     plot_hist(pp, recon['acceptr'].values, "acceptr", "Entries", "ratio")
-    plot_hist(pp, recon['acceptt'].values, "acceptt", "Entries", "ratio")
     plot_scatter(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", "MeV", "ratio")
     plot_hist2d(pp, recon['E'].values, recon['acceptr'].values, "energy", "acceptr", 0.5, 5, 0, 0.7, "MeV", "ratio", 50)
 
     # alpha plot
     ## energy distribution
-    alpha_bcE = plot_fit_fig(pp, alpha_bc['E'].values / npe, "alpha_BC-E", "Entries", 0, 10, "MeV")
-    alpha_reconE = plot_fit_fig(pp, alpha_recon['E'].values, "alpha_recon-E", "Entries", 0, 10, "MeV")
+    fig, ax = plt.subplots()
+    alpha_bcE = plot_fit(alpha_bc['E'].values, ax, "alpha_BC-E", "Entries", 0, 300, "NPE")
+    pp.savefig(fig)
+    plt.close(fig)
+    fig, ax = plt.subplots()
+    alpha_reconE = plot_fit(alpha_recon['E'].values, ax, "alpha_recon-E", "Entries", 0, 10, "MeV")
+    pp.savefig(fig)
+    plt.close(fig)
+
+    ## scaleE
+    plot_fit_fig(pp, alpha_bc['E'].values / alpha_bcE[0], "alpha_BC-scaleE", "Entries", 0, 3, "MeV")
+    plot_fit_fig(pp, alpha_recon['E'].values / alpha_reconE[0], "alpha_recon-scaleE", "Entries", 0, 3, "MeV")
+
+    fig, ax = plt.subplots()
+    ax.hist(alpha_bc['E'].values / alpha_bcE[0], bins = 100, range = [0, 2.5], histtype='step', label="BC")
+    ax.hist(alpha_recon['E'].values / alpha_reconE[0], bins = 100, range = [0, 2.5], histtype='step', label="recon")
+    ax.legend()
+    ax.set_title('Energy Distribution')
+    ax.set_xlabel("Energy")
+    ax.set_ylabel("Entries")
+    pp.savefig(fig)
+    plt.close(fig)
+
     ## vertex
     ### x
     alpha_bcx = plot_fit_fig(pp, alpha_bc['x'].values, "alpha_BC-x", "Entries", -shell, shell, "m")
@@ -62,8 +82,29 @@ with PdfPages(args.opt) as pp:
 
     # beta plot
     ## energy distribution
-    beta_bcE = plot_fit_fig(pp, beta_bc['E'].values / npe, "beta_BC-E", "Entries", 0, 10, "MeV")
-    beta_reconE = plot_fit_fig(pp, beta_recon['E'].values, "beta_recon-E", "Entries", 0, 10, "MeV")
+    fig, ax = plt.subplots()
+    beta_bcE = plot_fit(beta_bc['E'].values, ax, "beta_BC-E", "Entries", 0, 300, "NPE")
+    pp.savefig(fig)
+    plt.close(fig)
+    fig, ax = plt.subplots()
+    beta_reconE = plot_fit(beta_recon['E'].values, ax, "beta_recon-E", "Entries", 0, 10, "MeV")
+    pp.savefig(fig)
+    plt.close(fig)
+
+    ## scaleE
+    plot_fit_fig(pp, beta_bc['E'].values / beta_bcE[0], "beta_BC-scaleE", "Entries", 0, 3, "MeV")
+    plot_fit_fig(pp, beta_recon['E'].values / beta_reconE[0], "beta_recon-scaleE", "Entries", 0, 3, "MeV")
+
+    fig, ax = plt.subplots()
+    ax.hist(beta_bc['E'].values / beta_bcE[0], bins = 100, range = [0, 2.5], histtype='step', label="BC")
+    ax.hist(beta_recon['E'].values / beta_reconE[0], bins = 100, range = [0, 2.5], histtype='step', label="recon")
+    ax.legend()
+    ax.set_title('Energy Distribution')
+    ax.set_xlabel("Energy")
+    ax.set_ylabel("Entries")
+    pp.savefig(fig)
+    plt.close(fig)
+
     ## vertex
     ### x
     beta_bcx = plot_fit_fig(pp, beta_bc['x'].values, "beta_BC-x", "Entries", -shell, shell, "m")
