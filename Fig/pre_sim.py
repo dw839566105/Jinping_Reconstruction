@@ -26,7 +26,7 @@ def read_truth(inputfiles):
             y = np.array(info['truthList.y'].array() / 1000).flatten()
             z = np.array(info['truthList.z'].array() / 1000).flatten()
             r = np.sqrt(x**2 + y**2 + z**2)
-            xy = x**2 + y**2
+            xy = np.sqrt(x**2 + y**2)
             TriggerNo = np.array(info['TriggerNo'].array()).flatten()
             NPE = [len(sublist) for sublist in PMTID]
             truth = pd.DataFrame({"EventID":TriggerNo, "x":x, "y":y, "z":z, "NPE":NPE, "r":r, "xy":xy})

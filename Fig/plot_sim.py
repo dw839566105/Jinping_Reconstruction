@@ -62,6 +62,9 @@ with PdfPages(args.opt) as pp:
     plot_zxy(pp, truth['xy'].values ** 2, truth['z'], "truth")
     plot_zxy(pp, recon['xy'].values ** 2, recon['z'], "recon")
 
+    plot_scatter(pp, truth['xy'].values ** 2, truth['z'], "truth-xy", "truth-z", "m^2", "m")
+    plot_scatter(pp, recon['xy'].values ** 2, recon['z'], "recon-xy", "recon-z", "m^2", "m")
+
     # recon hist2d
     plot_hist2d(pp, truth['x'].values, recon['x'].values, "truth x", "recon x", -shell, shell, -shell, shell, "m", "m", 50)
     plot_hist2d(pp, truth['y'].values, recon['y'].values, "truth y", "recon y", -shell, shell, -shell, shell, "m", "m", 50)

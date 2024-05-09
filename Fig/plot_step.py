@@ -1,6 +1,7 @@
 import numpy as np
 import tables
 import pandas as pd
+import uproot
 import h5py
 import fit
 import argparse
@@ -13,7 +14,7 @@ from DetectorConfig import shell
 
 psr = argparse.ArgumentParser()
 psr.add_argument("-o", dest="opt", type=str, help="output file")
-psr.add_argument("-t", dest="truth", type=str, default=None, help="output file")
+psr.add_argument("-t", dest="truth", type=str, default=None, help="truth file")
 psr.add_argument("--switch", dest="switch", type=str, help="switch")
 psr.add_argument("--mode", dest="mode", type=str, help="data mode")
 psr.add_argument("--record", dest="record", type=str, help="record mode")
@@ -28,8 +29,16 @@ with h5py.File(args.ipt, "r") as f:
         sample = pd.DataFrame(f['Sample'][:])
 
 if args.mode == "sim":
-    with h5py.File(args.truth, "r") as f:
-        truth = pd.DataFrame(f['vertex'][:])
+    with uproot.open(args.truth) as ipt:
+        info = ipt['SimTriggerInfo']
+        PMTID = info['PEList.PMTId'].array()
+        x = np.array(info['truthList.x'].array() / 1000).flatten()
+        y = np.array(info['truthList.y'].array() / 1000).flatten()
+        z = np.array(info['truthList.z'].array() / 1000).flatten()
+        r = np.sqrt(x**2 + y**2 + z**2)
+        xy = np.sqrt(x**2 + y**2)
+        TriggerNo = np.array(info['TriggerNo'].array()).flatten()
+        truth = pd.DataFrame({"EventID":TriggerNo, "x":x, "y":y, "z":z, "E":2*np.ones(len(x)), "r":r, "xy":xy})
 
 with PdfPages(args.opt) as pp:
     for eid in recon['EventID'].unique()[:args.num]:
@@ -38,11 +47,9 @@ with PdfPages(args.opt) as pp:
             truth_data = truth[truth['EventID'] == eid]
         acceptz = data['acceptz'].sum() / data.shape[0]
         acceptr = data['acceptr'].sum() / data.shape[0]
-        acceptE = data['acceptE'].sum() / data.shape[0]
         print(f"eid-{eid}")
         print(f"acceptz-{acceptz}")
         print(f"acceptr-{acceptr}")
-        print(f"acceptE-{acceptE}")
         data_r = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2 +  data['z'].values ** 2) * shell
         data_xy = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2) * shell
 
@@ -184,8 +191,6 @@ with PdfPages(args.opt) as pp:
         axs[4].set_xlabel('step')
 
         axs[5].plot(data['t'].values)
-        if args.mode == "sim":
-            axs[5].axhline(y=truth_data['t'].values, color='g', linestyle='--')
         axs[5].set_title(f't Evolution - Event{eid}')
         axs[5].set_ylabel('t / ns')
         axs[5].set_xlabel('step')

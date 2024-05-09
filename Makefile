@@ -81,9 +81,13 @@ Fig/BiPo.pdf: Fig/BiPo.h5
 	python3 Fig/plot_bipo.py $^ -o $@
 
 # 单事例不同步骤重建结果分布图
-Fig/steps/%.pdf: tvE/%.h5
+Fig/steps/sim/%.pdf: tvE/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_step.py $< -o $@ -n 5 -s $(MCstep) --switch OFF --mode raw --record OFF
+	python3 Fig/plot_step.py $< -o $@ -n 5 -s $(MCstep) --switch OFF --mode sim -t /JNE/resolution/$*.root --record OFF
+
+Fig/steps/raw/%.pdf: tvE/%.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch OFF --mode raw --record OFF
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀
@@ -95,9 +99,13 @@ Fig/sim/pointz.h5: $(simreconz) $(simrootz)
 	mkdir -p $(dir $@)
 	python3 Fig/pre_sim.py -r $(simreconz) -t $(simrootz) -s $(MCstep) -o $@
 
-Fig/sim/%.pdf: Fig/sim/%.h5
+Fig/sim/ball.pdf: Fig/sim/ball.h5
 	mkdir -p $(dir $@)
 	python3 Fig/plot_sim.py $^ -o $@
+
+Fig/sim/pointz.pdf: Fig/sim/pointz.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_pointz.py $^ -o $@
 
 # time profile
 profile/%.stat: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
