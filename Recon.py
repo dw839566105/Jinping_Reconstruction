@@ -120,9 +120,10 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
             vertex0[3] = np.sum(pe_array) / np.sum(expect) * E0
 
             # EM 计算 t
-            T_i = probe.callT(vertex0, chs)
-            time_array = genTime(zs, s0s, offsets, T_i)
-            vertex0[-1] = np.quantile(time_array, tau)
+            if time_mode == "ON":
+                T_i = probe.callT(vertex0, chs)
+                time_array = genTime(zs, s0s, offsets, T_i)
+                vertex0[-1] = np.quantile(time_array, tau)
             
             # r 采样接收检查
             if Detector.Boundary(vertex1): ## 边界检查

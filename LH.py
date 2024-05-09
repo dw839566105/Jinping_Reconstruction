@@ -41,7 +41,7 @@ def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe, time_mode):
     if time_mode == "OFF":
         return L1
     else:
-        Ti = probe.callT(vertex, chs)
+        Ti = probe.callT(vertex, chs) + vertex[-1]
         return L1 + LogLikelihood_Time(Ti, zs, s0s, offsets)
     
 
