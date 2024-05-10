@@ -40,7 +40,7 @@ def plot_zxy(pp, data1, data2, title):
 
 def plot_hist2d(pp, data1, data2, title1, title2, start1, end1, start2, end2, unit1, unit2, binnum):
     fig, ax = plt.subplots()
-    h = ax.hist2d(data1, data2, bins = binnum, range=[[min(start1, end1), max(start1, end1)], [min(start2, end2), max(start2, end2)]], cmap='plasma')
+    h = ax.hist2d(data1, data2, bins = binnum, range=[[min(start1, end1), max(start1, end1)], [min(start2, end2), max(start2, end2)]], cmap='Greys')
     fig.colorbar(h[3], ax=ax)
     ax.set_title(f'{title1}-{title2} Distribution')
     ax.set_xlabel(f'{title1} / {unit1}')

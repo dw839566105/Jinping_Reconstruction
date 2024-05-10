@@ -50,14 +50,21 @@ coeff_PE_temp:=/JNE/coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
 PMT:=PMT.txt
 MCstep:=10000
-Simulation:=/JNE/eternity/Simulation/h5
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
-all: Fig/BiPo.pdf
+simrootball:=$(patsubst fsmp/%.pq, /JNE/resolution/%.root, $(wildcard fsmp/ball/2/*.pq))
+simrootz:=$(patsubst fsmp/%.pq, /JNE/resolution/%.root, $(wildcard fsmp/point/z/2/*.pq))
+simreconball:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/ball/2/*.pq))
+simreconz:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/point/z/2/*.pq))
+
+# 03 05 文件异常, 暂时去除观察其他事例
+simreconball:=$(filter-out tvE/ball/2/03.h5 tvE/ball/2/05.h5, $(simreconball))
+simrootball:=$(filter-out /JNE/resolution/ball/2/03.root /JNE/resolution/ball/2/05.root, $(simrootball))
+all: Fig/BiPo.pdf Fig/sim/ball.pdf Fig/sim/pointz.pdf
 
 # 事例重建
 tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
 	mkdir -p $(dir $@)
-	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 0 -m $(MCstep) -o $@ --sample EM --ton ON
+	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 0 -m $(MCstep) -o $@ --ton ON --record OFF
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
@@ -74,28 +81,31 @@ Fig/BiPo.pdf: Fig/BiPo.h5
 	python3 Fig/plot_bipo.py $^ -o $@
 
 # 单事例不同步骤重建结果分布图
-Fig/steps/%.pdf: tvE/%.h5
+Fig/steps/sim/%.pdf: tvE/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch OFF --mode raw
+	python3 Fig/plot_step.py $< -o $@ -n 5 -s $(MCstep) --switch OFF --mode sim -t /JNE/resolution/$*.root --record OFF
+
+Fig/steps/raw/%.pdf: tvE/%.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch OFF --mode raw --record OFF
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀
-Fig/sim/ball/pre.h5: $(simrecon) $(simrecont) $(simroot)
+Fig/sim/ball.h5: $(simreconball) $(simrootball)
 	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py -i $(simrecon) -w $(simrecont) -t $(simroot) -o $@
+	python3 Fig/pre_sim.py -r $(simreconball) -t $(simrootball) -s $(MCstep) -o $@
 # z 轴均匀
-Fig/sim/pointz/pre.h5: $(simreconz) $(simrootz)
+Fig/sim/pointz.h5: $(simreconz) $(simrootz)
 	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py -i $(simreconz) -t $(simrootz) -o $@
+	python3 Fig/pre_sim.py -r $(simreconz) -t $(simrootz) -s $(MCstep) -o $@
 
-# alpha/ele 波形重建
-Fig/sim/%.h5: JP_1t/root/%.root Reconresult/sim/%_stack.h5 Reconresult/sim/%_stack_t.h5 Reconresult/sim/%_step.h5 Reconresult/sim/%_step_t.h5 
-	mkdir -p $(dir $@)
-	python3 Fig/pre_sim.py --truth $< --stack $(word 2, $^) --stackt $(word 3, $^) --step $(word 4, $^) --stept $(word 5, $^) -o $@
-
-Fig/%.pdf: Fig/%.h5
+Fig/sim/ball.pdf: Fig/sim/ball.h5
 	mkdir -p $(dir $@)
 	python3 Fig/plot_sim.py $^ -o $@
+
+Fig/sim/pointz.pdf: Fig/sim/pointz.h5
+	mkdir -p $(dir $@)
+	python3 Fig/plot_pointz.py $^ -o $@
 
 # time profile
 profile/%.stat: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)

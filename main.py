@@ -33,11 +33,11 @@ parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, default
 parser.add_argument('-n', '--num', dest='num', type=int, default=10,
                     help='test event nums')
 
-parser.add_argument('--sample', dest='sample', type=str, default="EM",
-                    help='E sampling method EM/Gibbs')
-
 parser.add_argument('--ton', dest='ton', type=str, default="OFF",
                     help='probe_time ON/OFF')
+
+parser.add_argument('--record', dest='record', type=str, default="OFF",
+                    help='record each step sampling ON/OFF')
 
 parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10,
                     help='mcmc step per PEt')
@@ -51,6 +51,6 @@ probe = Detector.LoadProbe(args.probe, args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
 
 # 重建
-Recon.reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, args.MCstep, args.sample, args.ton)
+Recon.reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, args.MCstep, args.ton, args.record)
 
 

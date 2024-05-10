@@ -17,8 +17,8 @@ psr.add_argument("-s", dest="step", type=int, help="MC step")
 args = psr.parse_args()
 
 def read_truth(inputfiles):
-    result_truth = pd.DataFrame(columns=['FileNo', 'EventID', 'x', 'y', 'z', 'E', 'r', 'xy'])
-    for f in range(inputfiles):
+    result_truth = pd.DataFrame(columns=['FileNo', 'EventID', 'x', 'y', 'z', 'NPE', 'r', 'xy'])
+    for f in range(len(inputfiles)):
         with uproot.open(inputfiles[f]) as ipt:
             info = ipt['SimTriggerInfo']
             PMTID = info['PEList.PMTId'].array()
@@ -26,15 +26,15 @@ def read_truth(inputfiles):
             y = np.array(info['truthList.y'].array() / 1000).flatten()
             z = np.array(info['truthList.z'].array() / 1000).flatten()
             r = np.sqrt(x**2 + y**2 + z**2)
-            xy = x**2 + y**2
+            xy = np.sqrt(x**2 + y**2)
             TriggerNo = np.array(info['TriggerNo'].array()).flatten()
             NPE = [len(sublist) for sublist in PMTID]
-            truth = pd.DataFrame({"EventID":TriggerNo, "x":x, "y":y, "z":z, "E":NPE, "r":r, "xy":xy})
+            truth = pd.DataFrame({"EventID":TriggerNo, "x":x, "y":y, "z":z, "NPE":NPE, "r":r, "xy":xy})
             truth.insert(0, 'FileNo', f)
             result_truth = pd.concat([result_truth, truth])
     result_truth['EventID'] = result_truth['EventID'].astype('int')
     result_truth['FileNo'] = result_truth['FileNo'].astype('int')
-    result_truth['E'] = result_truth['E'].astype('int')
+    result_truth['NPE'] = result_truth['NPE'].astype('int')
     return result_truth
 
 def read_recon(inputfiles):
@@ -45,9 +45,9 @@ def read_recon(inputfiles):
             # burn 前 3/5
             recon = recon[recon['step'] > (args.step / 5 * 3)]
             recon_data = recon.groupby('EventID').mean().reset_index()
-            recon['x'] = recon['x'].apply(lambda x: x * shell)
-            recon['y'] = recon['y'].apply(lambda x: x * shell)
-            recon['z'] = recon['z'].apply(lambda x: x * shell)
+            recon_data['x'] = recon_data['x'].apply(lambda x: x * shell)
+            recon_data['y'] = recon_data['y'].apply(lambda x: x * shell)
+            recon_data['z'] = recon_data['z'].apply(lambda x: x * shell)
             recon_data['r'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2 + recon_data['z'].values**2)
             recon_data['xy'] = np.sqrt(recon_data['x'].values**2 + recon_data['y'].values**2)
             recon_data.insert(0, 'FileNo', f)
