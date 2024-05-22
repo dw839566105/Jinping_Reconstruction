@@ -52,7 +52,7 @@ class Probe:
         self.NPE = np.exp(self.base_t[:self.coeff_pe.shape[0]].T @ self.coeff_pe @ self.base_r[:self.coeff_pe.shape[1]])
         return self.NPE
 
-    def callT(self, vertex, firedPMT):
+    def callT(self, firedPMT):
         # 计算 PEt
         # 调用 callT 都在 callPE 之后，base_r 和 base_t 已被更新，不再重复计算
         self.Ti = self.base_t[:self.coeff_time.shape[0], firedPMT].T @ self.coeff_time @ self.base_r[:self.coeff_time.shape[1]]

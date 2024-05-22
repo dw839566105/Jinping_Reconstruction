@@ -3,6 +3,7 @@ import pandas as pd
 import h5py
 import argparse
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 from matplotlib.backends.backend_pdf import PdfPages
 from DetectorConfig import shell
 from plot_basis import *
@@ -73,5 +74,14 @@ with PdfPages(args.opt) as pp:
     plot_hist2d(pp, truth['xy'].values ** 2, recon['xy'].values ** 2, "truth x^2+y^2", "recon x^2+y^2", 0, shell**2, 0, shell**2, "m^2", "m^2", 50)
     plot_hist2d(pp, truth['r'].values ** 3, recon['r'].values ** 3, "truth r^3", "recon r^3", 0, shell**3, 0, shell**3, "m^3", "m^3", 50)
 
-
+    fig, ax = plt.subplots()
+    x = np.linspace(0, (shell * 1000)**3, 100000)
+    y = x
+    plt.plot(x, y, label='recon = truth', color='black')
+    h = ax.hist2d((truth['r'].values * 1000) ** 3, (recon['r'].values * 1000) ** 3, bins = 100, range=[[0, (shell * 1000)**3], [0, (shell * 1000)**3]], cmap='RdYlGn_r', norm=LogNorm())
+    fig.colorbar(h[3], ax=ax)
+    ax.set_xlabel("True R^3 [mm^3]")
+    ax.set_ylabel("Reconstructed R^3 [mm^3]")
+    pp.savefig(fig)
+    plt.close(fig)
 
