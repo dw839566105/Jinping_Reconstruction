@@ -3,26 +3,12 @@
 重建所需文件读入
 '''
 import numpy as np
-from DetectorConfig import tau, ts
+from DetectorConfig import tau, ts, dark, wavel, E0
+import statsmodels.api as sm
 
-def LogLikelihood_PE(E, pe_array, expect):
-    '''
-    PE 项似然函数
-    '''
-    expect[expect == 0] = 1E-6
-    expect1  = expect * E
-    lnL = pe_array * np.log(expect1) - expect1
-    return lnL.sum()
-
-def LogLikelihood_Time(T_i, zs, s0s, offsets):
-    '''
-    Time 项似然函数
-    T_i: vertex0 下各触发 PMT 接收到光子的时刻，根据 probe 计算。一维数组
-    '''
-    lnL = np.zeros(len(s0s))
-    for i, s0 in enumerate(s0s):
-        lnL[i] = np.sum(quantile(zs[i, :s0] + offsets[i], T_i[i], tau, ts))
-    return -lnL.sum()
+# sm.families.Poisson 只允许 log 的 link，其他 link 都会被视为 unsafe 弹出 warning
+import warnings
+warnings.filterwarnings("ignore")
 
 def quantile(y, T_i, tau, ts):
     # less = T_i[y<T_i] - y[y<T_i]
@@ -37,15 +23,32 @@ def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe, time_mode):
     pe_array: 在当前抽样的 Z 下，各通道接收到光子数。长度为 chnums 的一维数组
     '''
     expect = probe.callPE(vertex)
-    L1 = LogLikelihood_PE(vertex[3], pe_array, expect)
-    if time_mode == "OFF":
-        return L1
-    else:
-        Ti = probe.callT(vertex, chs) + vertex[-1]
-        return L1 + LogLikelihood_Time(Ti, zs, s0s, offsets)
+    L1 = - np.sum((expect * vertex[3] / E0 + dark * wavel) * (pe_array > 0))
+    Ti = probe.callT(chs) + vertex[-1]
+    L2 = np.zeros(len(s0s))
+    for i, s0 in enumerate(s0s):
+        L2[i] = np.sum(np.log(callRt(zs[i][:s0] + offsets[i], Ti[i], tau, ts) * expect[chs[i]] * vertex[3] / E0 + dark))
+    return L1 + L2.sum()
     
 def callRt(t, t0, tau, ts):
     '''
     计算 Rt
     '''
     return tau * (1 - tau) / ts * np.exp(-quantile(t, t0, tau, ts))
+
+def glm(x, y):
+    '''
+    对 E 做广义线性回归
+    y ~ poisson(E * x + B)
+    暗噪声来源于模拟，各通道一致
+    '''
+    # 去除无触发通道
+    nonzero_idx = np.where(y != 0)[0]
+    xi = x[nonzero_idx]
+    yi = y[nonzero_idx]
+    # 添加常数项
+    xi = sm.add_constant(xi)
+    # glm 回归
+    poisson_model = sm.GLM(yi, xi, family=sm.families.Poisson(link=sm.families.links.identity())).fit()
+    # 实际上 poisson_model.params[1] 为 B 的估计值
+    return poisson_model.params

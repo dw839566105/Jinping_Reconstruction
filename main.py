@@ -33,8 +33,8 @@ parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, default
 parser.add_argument('-n', '--num', dest='num', type=int, default=10,
                     help='test event nums')
 
-parser.add_argument('--ton', dest='ton', type=str, default="OFF",
-                    help='probe_time ON/OFF')
+parser.add_argument('--ton', dest='ton', type=str, default="ON",
+                    help='probe_time ON/OFF')   # OFF 暂未设定
 
 parser.add_argument('--record', dest='record', type=str, default="OFF",
                     help='record each step sampling ON/OFF')

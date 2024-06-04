@@ -70,7 +70,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
     # start reconstruction
     eid_start = 0
     for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, sampler in tqdm(FSMPreader(sparsify, fsmp).rand_iter(MC_step)):
-        # 将 s0s 转换为 int16
+        # 数据格式修正：将 s0s 转换为 int16
         s0s = s0s.astype('int16')
 
         # 设定随机数
@@ -90,19 +90,13 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
             recon['EventID'] = eid
             recon['step'] = recon_step
 
-            # 对 z 采样
+            # 对 z 采样: 以 count 为权重，从所有 channel 随机采样的组合
             expect = probe.callPE(vertex0)
-            ch, z, s0, nu_lc = next(sampler) # 某个通道，无限采
-            s0 = np.int16(s0)
-            # 以 count 为权重，从所有 channel 随机采样的组合
-            offset = offsets[ch]
-            mu0 = mu0s[ch]
-            '''
-            log_ratio = \Delta \sum_k \log[E \lambda_j \phi_j (t_{jk} - t_0) + b_j]
-            '''
-            T_i = probe.callT(vertex0, ch)
-            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offset, T_i, tau, ts) * expect[ch] * vertex0[3] / E0 + dark))
-            ratio_origin = np.sum(np.log(LH.callRt(zs[ch][:s0s[ch]] + offset, T_i, tau, ts) * expect[ch] * vertex0[3] / E0 + dark))
+            ch, z, s0, nu_lc = next(sampler)
+            s0 = np.int16(s0) ## s0 的数据格式修正
+            T_i = probe.callT(ch)
+            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offsets[ch], T_i, tau, ts) * expect[ch] * vertex0[3] / E0 + dark))
+            ratio_origin = np.sum(np.log(LH.callRt(zs[ch][:s0s[ch]] + offsets[ch], T_i, tau, ts) * expect[ch] * vertex0[3] / E0 + dark))
             criterion = nu_lcs[ch] - nu_lc + ratio_sample - ratio_origin
             if criterion > np.log(u[recon_step, 0]):
                 s0s[ch] = s0
@@ -111,49 +105,50 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
                 Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
                 recon['acceptz'] = 1
 
-            # 对位置采样
+            # 对 r 采样: 球内随机晃动
             vertex1 = mcmc.Perturb_pos(vertex0, u[recon_step, 1:4], r_max)
-
-            # EM 计算 E
             expect = probe.callPE(vertex1)
-            expect[expect == 0] = 1E-6
             pe_array = genPE(chs, s0s)
-            vertex1[3] = np.sum(pe_array) / np.sum(expect) * E0
-
-            # EM 计算 t
-            if time_mode == "ON":
-                T_i = probe.callT(vertex0, chs)
-                time_array = genTime(zs, s0s, offsets, T_i)
-                vertex1[-1] = np.quantile(time_array, tau)
-            
+            vertex1[3] = LH.glm(expect, pe_array)[0] ## GLM 计算 E TODO: 补充时间分 bin
+            print(LH.glm(expect, pe_array))
+            breakpoint()
             if Detector.Boundary(vertex1): ## 边界检查
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
-                if record_mode == "ON":
+                if record_mode == "ON": ## 记录采样结果
                     sample['EventID'] = eid
                     sample['step'] = recon_step
                     sample['x'], sample['y'], sample['z'], sample['E'], sample['t'] = vertex1
                     sample['Likelihood'] = Likelihood_vertex1
                     sample.append()
-
                 if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 4])):
                     vertex0 = vertex1
                     Likelihood_vertex0 = Likelihood_vertex1
                     recon['acceptr'] = 1
 
+            # 对 t 采样：均匀的随机增量
+            vertex2 = mcmc.Perturb_T(vertex0, u[recon_step, 5])
+            if vertex2[-1] > 0: ## 边界检查
+                Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+                if ((Likelihood_vertex2 - Likelihood_vertex0) > np.log(u[recon_step, 6])):
+                    vertex0 = vertex2
+                    Likelihood_vertex0 = Likelihood_vertex2
+                    recon['acceptt'] = 1
+
+            # 记录重建数据
             recon['x'], recon['y'], recon['z'], recon['E'], recon['t'] = vertex0
             recon['Likelihood'] = Likelihood_vertex0
             recon.append()
 
-        # 如果 Entries 不为 0，只重建 Entries 个事例
+        # 重建事例数：如果 Entries 不为 0，只重建 Entries 个事例
         eid_start += 1
         if Entries != 0:
             if eid_start > Entries - 1:
                 break
 
     # Flush into the output file
-    InitTable.flush()
-    ReconTable.flush() # 重建结果
+    InitTable.flush() ## 初值
+    ReconTable.flush() ## 重建结果
     if record_mode == "ON":
-        SampleTable.flush()
+        SampleTable.flush() ## 采样结果
     h5file.close()
 
