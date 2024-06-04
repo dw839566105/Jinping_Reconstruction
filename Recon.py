@@ -105,8 +105,8 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
                 Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
                 recon['acceptz'] = 1
 
-            # 对 r 采样: 球内随机晃动
-            vertex1 = mcmc.Perturb_pos(vertex0, u[recon_step, 1:4], r_max)
+            # 对 V 采样: 球内随机晃动
+            vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max)
             expect = probe.callPE(vertex1)
             pe_array = genPE(chs, s0s)
             vertex1[3] = LH.glm(expect, pe_array)[0] ## GLM 计算 E TODO: 补充时间分 bin
@@ -118,19 +118,10 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
                     sample['x'], sample['y'], sample['z'], sample['E'], sample['t'] = vertex1
                     sample['Likelihood'] = Likelihood_vertex1
                     sample.append()
-                if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 4])):
+                if ((Likelihood_vertex1 - Likelihood_vertex0) > np.log(u[recon_step, 5])):
                     vertex0 = vertex1
                     Likelihood_vertex0 = Likelihood_vertex1
                     recon['acceptr'] = 1
-
-            # 对 t 采样：均匀的随机增量
-            vertex2 = mcmc.Perturb_T(vertex0, u[recon_step, 5])
-            if vertex2[-1] > 0: ## 边界检查
-                Likelihood_vertex2 = LH.LogLikelihood(vertex2, pe_array, zs, s0s, offsets, chs, probe, time_mode)
-                if ((Likelihood_vertex2 - Likelihood_vertex0) > np.log(u[recon_step, 6])):
-                    vertex0 = vertex2
-                    Likelihood_vertex0 = Likelihood_vertex2
-                    recon['acceptt'] = 1
 
             # 记录重建数据
             recon['x'], recon['y'], recon['z'], recon['E'], recon['t'] = vertex0

@@ -12,7 +12,7 @@ def Perturb_energy(vertex, u):
     E = E_max * (2 * u - 1)
     return vertex + [0, 0, 0, E, 0]
 
-def Perturb_pos(vertex, u, r_max_E):
+def Perturb_posT(vertex, u, r_max_E):
     '''
     对 (x,,y,z,t) 进行随机晃动
     '''
@@ -23,11 +23,5 @@ def Perturb_pos(vertex, u, r_max_E):
     x = r * sin_theta * np.cos(phi)
     y = r * sin_theta * np.sin(phi)
     z = r * cos_theta
-    return vertex + [x, y, z, 0, 0]
-
-def Perturb_T(vertex, u):
-    '''
-    对 t 进行随机晃动
-    '''
-    t = T_max * (2 * u - 1)
-    return vertex + [0, 0, 0, 0, t]
+    t = T_max * (2 * u[3] - 1)
+    return vertex + [x, y, z, 0, t]
