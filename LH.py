@@ -21,10 +21,10 @@ def LogLikelihood_Time(T_i, zs, s0s, offsets):
     '''
     lnL = np.zeros(len(s0s))
     for i, s0 in enumerate(s0s):
-        lnL[i] = np.sum(LogLikelihood_quantile(zs[i, :s0] + offsets[i], T_i[i], tau, ts))
+        lnL[i] = np.sum(quantile(zs[i, :s0] + offsets[i], T_i[i], tau, ts))
     return -lnL.sum()
 
-def LogLikelihood_quantile(y, T_i, tau, ts):
+def quantile(y, T_i, tau, ts):
     # less = T_i[y<T_i] - y[y<T_i]
     # more = y[y>=T_i] - T_i[y>=T_i]
     # R = (1-tau)*np.sum(less) + tau*np.sum(more)
@@ -44,4 +44,8 @@ def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe, time_mode):
         Ti = probe.callT(vertex, chs) + vertex[-1]
         return L1 + LogLikelihood_Time(Ti, zs, s0s, offsets)
     
-
+def callRt(t, t0, tau, ts):
+    '''
+    计算 Rt
+    '''
+    return tau * (1 - tau) / ts * np.exp(-quantile(t, t0, tau, ts))

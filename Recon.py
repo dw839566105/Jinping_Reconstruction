@@ -10,7 +10,7 @@ import tables
 import mcmc
 import Detector
 from config import *
-from DetectorConfig import E0, chnums, tau, ts
+from DetectorConfig import E0, chnums, tau, ts, dark
 from tqdm import tqdm
 import LH
 from fsmp_reader import FSMPreader
@@ -97,13 +97,14 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
             # 以 count 为权重，从所有 channel 随机采样的组合
             offset = offsets[ch]
             mu0 = mu0s[ch]
-            if time_mode == "ON":
-                T_i = probe.callT(vertex0, ch)
-                log_ratio_time = np.sum(LH.LogLikelihood_quantile(z[:s0] + offset, T_i, tau, ts)) - np.sum(LH.LogLikelihood_quantile(zs[ch][:s0s[ch]] + offset, T_i, tau, ts))
-                log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3]) + nu_lcs[ch] - nu_lc + log_ratio_time
-            else:
-                log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3] / mu0)
-            if log_ratio > np.log(u[recon_step, 0]):
+            '''
+            log_ratio = \Delta \sum_k \log[E \lambda_j \phi_j (t_{jk} - t_0) + b_j]
+            '''
+            T_i = probe.callT(vertex0, ch)
+            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offset, T_i, tau, ts) * expect[ch] * vertex0[3] / E0 + dark))
+            ratio_origin = np.sum(np.log(LH.callRt(zs[ch][:s0s[ch]] + offset, T_i, tau, ts) * expect[ch] * vertex0[3] / E0 + dark))
+            criterion = nu_lcs[ch] - nu_lc + ratio_sample - ratio_origin
+            if criterion > np.log(u[recon_step, 0]):
                 s0s[ch] = s0
                 nu_lcs[ch] = nu_lc
                 zs[ch] = z
