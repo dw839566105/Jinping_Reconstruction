@@ -110,8 +110,6 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
             expect = probe.callPE(vertex1)
             pe_array = genPE(chs, s0s)
             vertex1[3] = LH.glm(expect, pe_array)[0] ## GLM 计算 E TODO: 补充时间分 bin
-            print(LH.glm(expect, pe_array))
-            breakpoint()
             if Detector.Boundary(vertex1): ## 边界检查
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
                 if record_mode == "ON": ## 记录采样结果
