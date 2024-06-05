@@ -46,9 +46,8 @@ def glm(x, y):
     nonzero_idx = np.where(y != 0)[0]
     xi = x[nonzero_idx]
     yi = y[nonzero_idx]
-    # 添加常数项
-    xi = sm.add_constant(xi)
+    B = np.ones_like(xi) * dark * wavel
     # glm 回归
-    poisson_model = sm.GLM(yi, xi, family=sm.families.Poisson(link=sm.families.links.identity())).fit()
-    # 实际上 poisson_model.params[1] 为 B 的估计值
+    poisson_model = sm.GLM(yi, xi, family=sm.families.Poisson(link=sm.families.links.identity()), offset=B).fit()
+    breakpoint()
     return poisson_model.params
