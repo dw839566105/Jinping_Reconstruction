@@ -12,3 +12,4 @@ ts = 3
 
 dark = 0.00001
 wavel = 1029
+tbin = 2 # ns

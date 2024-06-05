@@ -3,7 +3,7 @@
 重建所需文件读入
 '''
 import numpy as np
-from DetectorConfig import tau, ts, dark, wavel, E0
+from DetectorConfig import tau, ts, dark, wavel, E0, chnums, tbin
 import statsmodels.api as sm
 
 # sm.families.Poisson 只允许 log 的 link，其他 link 都会被视为 unsafe 弹出 warning
@@ -27,7 +27,7 @@ def LogLikelihood(vertex, zs, s0s, offsets, chs, probe):
     Ti = probe.callT(chs) + vertex[-1]
     L2 = np.zeros(len(s0s))
     for i, s0 in enumerate(s0s):
-        L2[i] = np.sum(np.log(callRt(zs[i][:s0] + offsets[i], Ti[i] + vertex[-1]) * expect[chs[i]] * vertex[3] / E0 + dark))
+        L2[i] = np.sum(np.log(callRt(zs[i][:s0] + offsets[i], Ti[i]) * expect[chs[i]] * vertex[3] / E0 + dark))
     return L1 + L2.sum()
     
 def callRt(t, t0):
@@ -36,13 +36,27 @@ def callRt(t, t0):
     '''
     return tau * (1 - tau) / ts * np.exp(-quantile(t, t0))
 
-def glm(x, y):
+def glm(vertex, zs, s0s, offsets, chs, probe):
     '''
     对 E 做广义线性回归
     y ~ poisson(E * x + B)
-    暗噪声来源于模拟，各通道一致
+    暗噪声来源于模拟，各通道一致: B = dark * tbin
     '''
-    B = np.ones_like(x) * dark * wavel
+    bound = np.arange(0, wavel + tbin, tbin)
+    t = 0.5 * bound[:-1] + 0.5 * bound[1:]
+    lamb = np.zeros((chnums, len(t)))
+    N = np.zeros((chnums, len(t)))
+    expect = probe.callPE(vertex)
+    Ti = probe.callT(range(chnums)) + vertex[-1]
+    for i in range(chnums):
+        # 生成 x : lambda
+        lamb[i,:] = expect[i] * callRt(t, Ti[i])
+        # 生成 y : N
+        if i < len(chs):
+            N[chs[i],:], _ = np.histogram(zs[i][:s0s[i]] + offsets[i], bins = bound)
     # glm 回归
-    poisson_model = sm.GLM(y, x, family=sm.families.Poisson(link=sm.families.links.identity()), offset=B).fit()
+    x = lamb.reshape(-1)
+    y = N.reshape(-1)
+    B = np.ones_like(x) * dark * tbin
+    poisson_model = sm.GLM(y, x, family = sm.families.Poisson(link = sm.families.links.identity()), offset = B).fit()
     return poisson_model.params

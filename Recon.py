@@ -29,26 +29,6 @@ class DataType(tables.IsDescription):
     acceptE = tables.Float32Col(pos=10)
     acceptt = tables.Float32Col(pos=11)
 
-def genPE(chs, s0s):
-    '''
-    取出所有通道的 NPE
-    '''
-    pe_array = np.zeros(chnums)
-    for i in range(len(chs)):
-        pe_array[chs[i]] = s0s[i]
-    return pe_array
-
-def genTime(zs, s0s, offsets, T_i):
-    '''
-    取出所有通道的 PEt，展开为一维数组
-    '''
-    time_array = np.zeros(np.sum(s0s))
-    j = 0
-    for i, s0 in enumerate(s0s):
-        time_array[j : j + s0] = zs[i, :s0] + offsets[i] - T_i[i]
-        j += s0
-    return time_array
-
 def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, record_mode):
     '''
     reconstruction
@@ -102,9 +82,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, rec
 
             # 对 V 采样: 球内随机晃动
             vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max)
-            expect = probe.callPE(vertex1)
-            pe_array = genPE(chs, s0s)
-            vertex1[3] = LH.glm(expect, pe_array)[0] * E0 ## GLM 计算 E TODO: 补充时间分 bin
+            vertex1[3] = LH.glm(vertex1, zs, s0s, offsets, chs, probe)[0] * E0 ## GLM 计算 E 
             if Detector.Boundary(vertex1): ## 边界检查
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, zs, s0s, offsets, chs, probe)
                 if record_mode == "ON": ## 记录采样结果
