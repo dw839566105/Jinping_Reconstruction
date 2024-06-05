@@ -23,7 +23,7 @@ def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe):
     pe_array: 在当前抽样的 Z 下，各通道接收到光子数。长度为 chnums 的一维数组
     '''
     expect = probe.callPE(vertex)
-    L1 = - np.sum((expect * vertex[3] / E0 + dark * wavel) * (pe_array > 0))
+    L1 = - np.sum((expect * vertex[3] / E0 + dark * wavel))
     Ti = probe.callT(chs) + vertex[-1]
     L2 = np.zeros(len(s0s))
     for i, s0 in enumerate(s0s):
@@ -42,11 +42,7 @@ def glm(x, y):
     y ~ poisson(E * x + B)
     暗噪声来源于模拟，各通道一致
     '''
-    # 去除无触发通道
-    nonzero_idx = np.where(y != 0)[0]
-    xi = x[nonzero_idx]
-    yi = y[nonzero_idx]
-    B = np.ones_like(xi) * dark * wavel
+    B = np.ones_like(x) * dark * wavel
     # glm 回归
-    poisson_model = sm.GLM(yi, xi, family=sm.families.Poisson(link=sm.families.links.identity()), offset=B).fit()
+    poisson_model = sm.GLM(y, x, family=sm.families.Poisson(link=sm.families.links.identity()), offset=B).fit()
     return poisson_model.params
