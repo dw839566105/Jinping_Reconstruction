@@ -50,7 +50,7 @@ def glm(vertex, zs, s0s, offsets, chs, probe):
     Ti = probe.callT(range(chnums)) + vertex[-1]
     for i in range(chnums):
         # 生成 x : lambda
-        lamb[i,:] = expect[i] * callRt(t, Ti[i])
+        lamb[i,:] = expect[i] * callRt(t, Ti[i]) * tbin
         # 生成 y : N
         if i < len(chs):
             N[chs[i],:], _ = np.histogram(zs[i][:s0s[i]] + offsets[i], bins = bound)
