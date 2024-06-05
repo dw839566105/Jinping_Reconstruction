@@ -17,7 +17,7 @@ def quantile(y, T_i, tau, ts):
     L = (T_i-y) * (y<T_i) * (1-tau) + (y-T_i) * (y>=T_i) * tau
     return L/ts
 
-def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe, time_mode):
+def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe):
     '''
     计算似然函数
     pe_array: 在当前抽样的 Z 下，各通道接收到光子数。长度为 chnums 的一维数组
@@ -49,5 +49,4 @@ def glm(x, y):
     B = np.ones_like(xi) * dark * wavel
     # glm 回归
     poisson_model = sm.GLM(yi, xi, family=sm.families.Poisson(link=sm.families.links.identity()), offset=B).fit()
-    breakpoint()
     return poisson_model.params

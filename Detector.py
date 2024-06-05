@@ -7,7 +7,6 @@ from DetectorConfig import *
 from polynomial import *
 import numpy as np
 import tables
-import LH
 
 def Boundary(vertex):
     '''
@@ -58,7 +57,7 @@ class Probe:
         self.Ti = self.base_t[:self.coeff_time.shape[0], firedPMT].T @ self.coeff_time @ self.base_r[:self.coeff_time.shape[1]]
         return self.Ti
 
-def Init(pe_array, time_array, pmt_pos, time_mode):
+def Init(pe_array, time_array, pmt_pos):
     '''
     计算初值
     pe_array: 在当前抽样的 Z 下，各通道接收到光子数。长度为 chnums 的一维数组
@@ -67,9 +66,8 @@ def Init(pe_array, time_array, pmt_pos, time_mode):
     vertex = np.zeros(5)
     x_ini = 1.5 * np.sum(np.atleast_2d(pe_array).T*pmt_pos, axis=0) / np.sum(pe_array)
     E_ini = np.sum(pe_array) / npe # npe PE/MeV
-    if time_mode == "ON":
-        t_ini = np.quantile(time_array, 0.1) # quantile 0.1
-        vertex[-1] = t_ini - T0
+    t_ini = np.quantile(time_array, 0.1) # quantile 0.1
+    vertex[-1] = t_ini - T0
     vertex[3] = E_ini
     vertex[:3] = x_ini / shell
     if Boundary(vertex) == False:

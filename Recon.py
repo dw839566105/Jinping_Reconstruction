@@ -52,7 +52,7 @@ def genTime(zs, s0s, offsets, T_i):
         j += s0
     return time_array
 
-def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, time_mode, record_mode):
+def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, record_mode):
     '''
     reconstruction
     '''
@@ -69,7 +69,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
 
     # start reconstruction
     eid_start = 0
-    for eid, chs, offsets, zs, s0s, nu_lcs, mu0s, sampler in tqdm(FSMPreader(sparsify, fsmp).rand_iter(MC_step)):
+    for eid, chs, offsets, zs, s0s, nu_lcs, _, sampler in tqdm(FSMPreader(sparsify, fsmp).rand_iter(MC_step)):
         # 数据格式修正：将 s0s 转换为 int16
         s0s = s0s.astype('int16')
 
@@ -80,8 +80,8 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
         # 给出 vertex, LogLikelihhood 的初值
         pe_array = genPE(chs, s0s)
         time_array = genTime(zs, s0s, offsets, np.zeros(len(s0s)))
-        vertex0 = Detector.Init(pe_array, time_array, pmt_pos, time_mode)
-        Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+        vertex0 = Detector.Init(pe_array, time_array, pmt_pos)
+        Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe)
         init['x'], init['y'], init['z'], init['E'], init['t'] = vertex0
         init['EventID'] = eid
         init.append()
@@ -102,7 +102,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
                 s0s[ch] = s0
                 nu_lcs[ch] = nu_lc
                 zs[ch] = z
-                Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+                Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe)
                 recon['acceptz'] = 1
 
             # 对 V 采样: 球内随机晃动
@@ -111,7 +111,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
             pe_array = genPE(chs, s0s)
             vertex1[3] = LH.glm(expect, pe_array)[0] ## GLM 计算 E TODO: 补充时间分 bin
             if Detector.Boundary(vertex1): ## 边界检查
-                Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe, time_mode)
+                Likelihood_vertex1 = LH.LogLikelihood(vertex1, pe_array, zs, s0s, offsets, chs, probe)
                 if record_mode == "ON": ## 记录采样结果
                     sample['EventID'] = eid
                     sample['step'] = recon_step
