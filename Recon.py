@@ -104,7 +104,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, rec
             vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max)
             expect = probe.callPE(vertex1)
             pe_array = genPE(chs, s0s)
-            vertex1[3] = LH.glm(expect, pe_array)[0] ## GLM 计算 E TODO: 补充时间分 bin
+            vertex1[3] = LH.glm(expect, pe_array)[0] * E0 ## GLM 计算 E TODO: 补充时间分 bin
             if Detector.Boundary(vertex1): ## 边界检查
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, zs, s0s, offsets, chs, probe)
                 if record_mode == "ON": ## 记录采样结果
