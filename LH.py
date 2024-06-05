@@ -10,14 +10,14 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings("ignore")
 
-def quantile(y, T_i, tau, ts):
+def quantile(y, T_i):
     # less = T_i[y<T_i] - y[y<T_i]
     # more = y[y>=T_i] - T_i[y>=T_i]
     # R = (1-tau)*np.sum(less) + tau*np.sum(more)
     L = (T_i-y) * (y<T_i) * (1-tau) + (y-T_i) * (y>=T_i) * tau
     return L/ts
 
-def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe):
+def LogLikelihood(vertex, zs, s0s, offsets, chs, probe):
     '''
     计算似然函数
     pe_array: 在当前抽样的 Z 下，各通道接收到光子数。长度为 chnums 的一维数组
@@ -27,14 +27,14 @@ def LogLikelihood(vertex, pe_array, zs, s0s, offsets, chs, probe):
     Ti = probe.callT(chs) + vertex[-1]
     L2 = np.zeros(len(s0s))
     for i, s0 in enumerate(s0s):
-        L2[i] = np.sum(np.log(callRt(zs[i][:s0] + offsets[i], Ti[i], tau, ts) * expect[chs[i]] * vertex[3] / E0 + dark))
+        L2[i] = np.sum(np.log(callRt(zs[i][:s0] + offsets[i], Ti[i]) * expect[chs[i]] * vertex[3] / E0 + dark))
     return L1 + L2.sum()
     
-def callRt(t, t0, tau, ts):
+def callRt(t, t0):
     '''
     计算 Rt
     '''
-    return tau * (1 - tau) / ts * np.exp(-quantile(t, t0, tau, ts))
+    return tau * (1 - tau) / ts * np.exp(-quantile(t, t0))
 
 def glm(x, y):
     '''
