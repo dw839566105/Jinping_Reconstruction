@@ -27,7 +27,7 @@ def LogLikelihood(vertex, zs, s0s, offsets, chs, probe):
     Ti = probe.callT(chs) + vertex[-1]
     L2 = np.zeros(len(s0s))
     for i, s0 in enumerate(s0s):
-        L2[i] = np.sum(np.log(callRt(zs[i][:s0] + offsets[i], Ti[i]) * expect[chs[i]] * vertex[3] / E0 + dark))
+        L2[i] = np.sum(np.log(callRt(zs[i][:s0] + offsets[i], Ti[i] + vertex[-1]) * expect[chs[i]] * vertex[3] / E0 + dark))
     return L1 + L2.sum()
     
 def callRt(t, t0):

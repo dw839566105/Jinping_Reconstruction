@@ -90,8 +90,8 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, rec
             ch, z, s0, nu_lc = next(sampler)
             s0 = np.int16(s0) ## s0 的数据格式修正
             T_i = probe.callT(ch)
-            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offsets[ch], T_i) * expect[ch] * vertex0[3] / E0 + dark))
-            ratio_origin = np.sum(np.log(LH.callRt(zs[ch][:s0s[ch]] + offsets[ch], T_i) * expect[ch] * vertex0[3] / E0 + dark))
+            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offsets[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + dark))
+            ratio_origin = np.sum(np.log(LH.callRt(zs[ch][:s0s[ch]] + offsets[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + dark))
             criterion = nu_lcs[ch] - nu_lc + ratio_sample - ratio_origin
             if criterion > np.log(u[recon_step, 0]):
                 s0s[ch] = s0
