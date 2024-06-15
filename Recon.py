@@ -67,17 +67,16 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
 
             # 对 z 采样: 以 count 为权重，从所有 channel 随机采样的组合
             expect = probe.callPE(vertex0)
-            ch, z, s0, nu_lc = next(sampler)
+            i_ch, z, s0, nu_lc = next(sampler)
             s0 = np.int16(s0) ## s0 的数据格式修正
-            index = chs.index(ch)
-            T_i = probe.callT(ch)
-            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offsets[index] + timecalib[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + darkrate[ch]))
-            ratio_origin = np.sum(np.log(LH.callRt(zs[index][:s0s[index]] + offsets[index] + timecalib[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + darkrate[ch]))
-            criterion = nu_lcs[ch] - nu_lc + ratio_sample - ratio_origin
+            T_i = probe.callT(chs[i_ch])
+            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offsets[i_ch] + timecalib[chs[i_ch]], T_i + vertex0[-1]) * expect[chs[i_ch]] * vertex0[3] / E0 + darkrate[chs[i_ch]]))
+            ratio_origin = np.sum(np.log(LH.callRt(zs[i_ch][:s0s[i_ch]] + offsets[i_ch] + timecalib[chs[i_ch]], T_i + vertex0[-1]) * expect[chs[i_ch]] * vertex0[3] / E0 + darkrate[chs[i_ch]]))
+            criterion = nu_lcs[i_ch] - nu_lc + ratio_sample - ratio_origin
             if criterion > np.log(u[recon_step, 0]):
-                s0s[ch] = s0
-                nu_lcs[ch] = nu_lc
-                zs[ch] = z
+                s0s[i_ch] = s0
+                nu_lcs[i_ch] = nu_lc
+                zs[i_ch] = z
                 Likelihood_vertex0 = LH.LogLikelihood(vertex0, zs, s0s, offsets, chs, probe, darkrate, timecalib)
                 recon['acceptz'] = 1
 
