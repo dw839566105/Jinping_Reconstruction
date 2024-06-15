@@ -10,6 +10,6 @@ shell = 0.645
 tau = 0.1
 ts = 3
 
-dark = 0.00001
+timel_dark = 150 # ns
 wavel = 1029
 tbin = 2 # ns

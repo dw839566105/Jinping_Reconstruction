@@ -6,7 +6,9 @@ import argparse
 from argparse import RawTextHelpFormatter
 import Recon
 import Detector
+from DetectorConfig import timel_dark
 import numpy as np
+import pandas as pd
     
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
 parser.add_argument('-f', '--filename', dest='filename', metavar='filename[*.pq]', type=str,
@@ -30,6 +32,12 @@ parser.add_argument('--time', dest='time', metavar='TimeCoeff[*.h5]', type=str,
 parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, default=r'/mnt/stage/wengjun/OSIRIS/OSIRISTOP/osiris/simulation-data/pmt_pos.txt',
                     help='The PMT file [*.txt] to be loaded')
 
+parser.add_argument('--dark', dest='dark', type=str,
+                    help='dark rate file')
+
+parser.add_argument('--timecalib', dest='timecalib', type=str,
+                    help='time calib file')
+
 parser.add_argument('-n', '--num', dest='num', type=int, default=10,
                     help='test event nums')
 
@@ -46,8 +54,12 @@ pmt_pos = np.loadtxt(args.PMT)
 print("Finished Reading PMT")
 probe = Detector.LoadProbe(args.probe, args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
+darkfile = pd.read_csv(args.dark, sep='\s+', header=None, comment="#")
+timefile = pd.read_csv(args.timecalib, sep='\s+', header=None, comment="#")
+darkrate = darkfile[9].values / darkfile[1].values / timel_dark
+timecalib = timefile[6].values
 
 # 重建
-Recon.reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, args.MCstep, args.record)
+Recon.reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, darkrate, timecalib, args.MCstep, args.record)
 
 

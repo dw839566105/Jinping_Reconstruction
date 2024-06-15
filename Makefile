@@ -48,6 +48,8 @@ coeff_Leg_pdf:  $(foreach o1,$(order1),$(foreach o2,$(order2),$(path)/coeff/Lege
 # probe 源自 douwei
 coeff_PE_temp:=/JNE/coeff/Legendre/Gather/PE/2/80/40.h5
 coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
+TimeCalib:=/JNE/Jinping_1ton_Data/CalibData/TimeCalibData/PMTTimeCalib_Run257toRun262.txt
+PMTCalib:=/JNE/Jinping_1ton_Data/CalibData/GainCalibData/PMTGainCalib_Run0257toRun0271.txt
 PMT:=PMT.txt
 MCstep:=10000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
@@ -59,12 +61,12 @@ simreconz:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/point/z/2/*.pq))
 # 03 05 文件异常, 暂时去除观察其他事例
 simreconball:=$(filter-out tvE/ball/2/03.h5 tvE/ball/2/05.h5, $(simreconball))
 simrootball:=$(filter-out /JNE/resolution/ball/2/03.root /JNE/resolution/ball/2/05.root, $(simrootball))
-all: Fig/BiPo.pdf Fig/sim/ball.pdf Fig/sim/pointz.pdf
+all: Fig/BiPo.pdf
 
 # 事例重建
-tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
+tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) $(PMTCalib) $(TimeCalib)
 	mkdir -p $(dir $@)
-	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 0 -m $(MCstep) -o $@ --record OFF
+	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 2 -m $(MCstep) -o $@ --record OFF
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
@@ -87,7 +89,7 @@ Fig/steps/sim/%.pdf: tvE/%.h5
 
 Fig/steps/raw/%.pdf: tvE/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch OFF --mode raw --record OFF
+	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch ON --mode raw --record OFF
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀
@@ -108,9 +110,9 @@ Fig/sim/pointz.pdf: Fig/sim/pointz.h5
 	python3 Fig/plot_pointz.py $^ -o $@
 
 # time profile
-profile/%.stat: charge/%.parquet $(coeff_PE_temp) $(coeff_time_temp)
+profile/%.stat: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT)
 	mkdir -p $(dir $@)
-	python3 -m cProfile -o $@ main.py -f $< --pe $(word 2, $^) --time $(word 3, $^) -o profile/$*.h5
+	python3 -m cProfile -o $@ main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) -n 10 -m $(MCstep) -o profile/$*.h5 --record OFF
 
 profile/%.svg: profile/%.stat
 	gprof2dot -f pstats $^ | dot -Tsvg -o $@

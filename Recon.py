@@ -7,7 +7,7 @@ import tables
 import mcmc
 import Detector
 from config import *
-from DetectorConfig import E0, chnums, dark
+from DetectorConfig import E0
 from tqdm import tqdm
 import LH
 from fsmp_reader import FSMPreader
@@ -29,7 +29,7 @@ class DataType(tables.IsDescription):
     acceptE = tables.Float32Col(pos=10)
     acceptt = tables.Float32Col(pos=11)
 
-def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, record_mode):
+def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, timecalib, MC_step, record_mode):
     '''
     reconstruction
     '''
@@ -55,8 +55,8 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, rec
         u = np.random.uniform(0, 1, (MC_step, variables))
     
         # 给出 vertex, LogLikelihhood 的初值并记录
-        vertex0 = Detector.Init(zs, s0s, offsets, chs, pmt_pos)
-        Likelihood_vertex0 = LH.LogLikelihood(vertex0, zs, s0s, offsets, chs, probe)
+        vertex0 = Detector.Init(zs, s0s, offsets, chs, pmt_pos, timecalib)
+        Likelihood_vertex0 = LH.LogLikelihood(vertex0, zs, s0s, offsets, chs, probe, darkrate, timecalib)
         init['x'], init['y'], init['z'], init['E'], init['t'] = vertex0
         init['EventID'] = eid
         init.append()
@@ -69,22 +69,23 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, rec
             expect = probe.callPE(vertex0)
             ch, z, s0, nu_lc = next(sampler)
             s0 = np.int16(s0) ## s0 的数据格式修正
+            index = chs.index(ch)
             T_i = probe.callT(ch)
-            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offsets[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + dark))
-            ratio_origin = np.sum(np.log(LH.callRt(zs[ch][:s0s[ch]] + offsets[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + dark))
+            ratio_sample = np.sum(np.log(LH.callRt(z[:s0] + offsets[index] + timecalib[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + darkrate[ch]))
+            ratio_origin = np.sum(np.log(LH.callRt(zs[index][:s0s[index]] + offsets[index] + timecalib[ch], T_i + vertex0[-1]) * expect[ch] * vertex0[3] / E0 + darkrate[ch]))
             criterion = nu_lcs[ch] - nu_lc + ratio_sample - ratio_origin
             if criterion > np.log(u[recon_step, 0]):
                 s0s[ch] = s0
                 nu_lcs[ch] = nu_lc
                 zs[ch] = z
-                Likelihood_vertex0 = LH.LogLikelihood(vertex0, zs, s0s, offsets, chs, probe)
+                Likelihood_vertex0 = LH.LogLikelihood(vertex0, zs, s0s, offsets, chs, probe, darkrate, timecalib)
                 recon['acceptz'] = 1
 
             # 对 V 采样: 球内随机晃动
             vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max)
-            vertex1[3] = LH.glm(vertex1, zs, s0s, offsets, chs, probe)[0] * E0 ## GLM 计算 E 
+            vertex1[3] = LH.glm(vertex1, zs, s0s, offsets, chs, probe, darkrate)[0] * E0 ## GLM 计算 E 
             if Detector.Boundary(vertex1): ## 边界检查
-                Likelihood_vertex1 = LH.LogLikelihood(vertex1, zs, s0s, offsets, chs, probe)
+                Likelihood_vertex1 = LH.LogLikelihood(vertex1, zs, s0s, offsets, chs, probe, darkrate, timecalib)
                 if record_mode == "ON": ## 记录采样结果
                     sample['EventID'] = eid
                     sample['step'] = recon_step
