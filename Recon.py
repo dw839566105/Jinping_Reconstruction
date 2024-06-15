@@ -92,21 +92,21 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, MC_step, tim
 
             # 对 z 采样
             expect = probe.callPE(vertex0)
-            ch, z, s0, nu_lc = next(sampler) # 某个通道，无限采
+            i_ch, z, s0, nu_lc = next(sampler)
             s0 = np.int16(s0)
             # 以 count 为权重，从所有 channel 随机采样的组合
-            offset = offsets[ch]
-            mu0 = mu0s[ch]
+            offset = offsets[i_ch]
+            mu0 = mu0s[i_ch]
             if time_mode == "ON":
                 T_i = probe.callT(vertex0, ch)
-                log_ratio_time = np.sum(LH.LogLikelihood_quantile(z[:s0] + offset, T_i, tau, ts)) - np.sum(LH.LogLikelihood_quantile(zs[ch][:s0s[ch]] + offset, T_i, tau, ts))
-                log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3]) + nu_lcs[ch] - nu_lc + log_ratio_time
+                log_ratio_time = np.sum(LH.LogLikelihood_quantile(z[:s0] + offset, T_i, tau, ts)) - np.sum(LH.LogLikelihood_quantile(zs[i_ch][:s0s[i_ch]] + offset, T_i, tau, ts))
+                log_ratio = (s0 - s0s[i_ch]) * np.log(expect[chs[i_ch]] * vertex0[3]) + nu_lcs[i_ch] - nu_lc + log_ratio_time
             else:
-                log_ratio = (s0 - s0s[ch]) * np.log(expect[ch] * vertex0[3] / mu0)
+                log_ratio = (s0 - s0s[i_ch]) * np.log(expect[chs[i_ch]] * vertex0[3] / mu0)
             if log_ratio > np.log(u[recon_step, 0]):
-                s0s[ch] = s0
-                nu_lcs[ch] = nu_lc
-                zs[ch] = z
+                s0s[i_ch] = s0
+                nu_lcs[i_ch] = nu_lc
+                zs[i_ch] = z
                 Likelihood_vertex0 = LH.LogLikelihood(vertex0, pe_array, zs, s0s, offsets, chs, probe, time_mode)
                 recon['acceptz'] = 1
 
