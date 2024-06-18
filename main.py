@@ -54,9 +54,8 @@ pmt_pos = np.loadtxt(args.PMT)
 print("Finished Reading PMT")
 probe = Detector.LoadProbe(args.probe, args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
-darkfile = pd.read_csv(args.dark, sep='\s+', header=None, comment="#")
 timefile = pd.read_csv(args.timecalib, sep='\s+', header=None, comment="#")
-darkrate = darkfile[9].values / darkfile[1].values / timel_dark
+darkrate = np.loadtxt(args.dark) / 1E9 # Hz 转换成 个 / ns
 timecalib = timefile[6].values
 
 # 重建

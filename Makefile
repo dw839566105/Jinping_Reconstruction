@@ -63,8 +63,12 @@ simreconball:=$(filter-out tvE/ball/2/03.h5 tvE/ball/2/05.h5, $(simreconball))
 simrootball:=$(filter-out /JNE/resolution/ball/2/03.root /JNE/resolution/ball/2/05.root, $(simrootball))
 all: Fig/BiPo.pdf
 
+# 临时计算暗噪声率，后续再仔细考虑。MonitorRun0257_Run0290.root 来自于 online@jinping.g.airelinux.org:~/ZLWork/Calibration/OutputFile/MonitorFile/MonitorRun0257_Run0290.root
+darknoise.txt: MonitorRun0257_Run0290.root
+	time python3 genDark.py -i $< -o $@ -d darkrate.pdf
+
 # 事例重建
-tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) $(PMTCalib) $(TimeCalib)
+tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
 	mkdir -p $(dir $@)
 	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 0 -m $(MCstep) -o $@ --record OFF
 
