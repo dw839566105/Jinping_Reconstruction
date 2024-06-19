@@ -6,7 +6,6 @@ import argparse
 from argparse import RawTextHelpFormatter
 import Recon
 import Detector
-from DetectorConfig import timel_dark
 import numpy as np
 import pandas as pd
     
