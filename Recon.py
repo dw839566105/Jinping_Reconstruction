@@ -77,13 +77,14 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
                 s0s[i_ch] = s0
                 nu_lcs[i_ch] = nu_lc
                 zs[i_ch] = z
+                vertex0[3] = LH.glm(vertex0, zs, s0s, offsets, chs, probe, darkrate)[0] * E0 ## GLM 计算 E
                 Likelihood_vertex0 = LH.LogLikelihood(vertex0, zs, s0s, offsets, chs, probe, darkrate, timecalib)
                 recon['acceptz'] = 1
 
             # 对 V 采样: 球内随机晃动
             vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max)
-            vertex1[3] = LH.glm(vertex1, zs, s0s, offsets, chs, probe, darkrate)[0] * E0 ## GLM 计算 E 
-            if Detector.Boundary(vertex1): ## 边界检查
+            if Detector.Boundary(vertex1): ## 边界检查   
+                vertex1[3] = LH.glm(vertex1, zs, s0s, offsets, chs, probe, darkrate)[0] * E0 ## GLM 计算 E 
                 Likelihood_vertex1 = LH.LogLikelihood(vertex1, zs, s0s, offsets, chs, probe, darkrate, timecalib)
                 if record_mode == "ON": ## 记录采样结果
                     sample['EventID'] = eid
