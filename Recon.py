@@ -17,17 +17,18 @@ class DataType(tables.IsDescription):
     重建数据储存类型
     '''
     EventID = tables.Int64Col(pos=0)    # EventNo
-    step = tables.Int64Col(pos=1)       # wave step
-    x = tables.Float32Col(pos=2)        # x position
-    y = tables.Float32Col(pos=3)        # y position
-    z = tables.Float32Col(pos=4)        # z position
-    E = tables.Float32Col(pos=5)        # Energy
-    t = tables.Float32Col(pos=6)        # time
-    Likelihood = tables.Float64Col(pos=7)
-    acceptz = tables.Float32Col(pos=8)
-    acceptr = tables.Float32Col(pos=9)
-    acceptE = tables.Float32Col(pos=10)
-    acceptt = tables.Float32Col(pos=11)
+    step = tables.Int32Col(pos=1)       # wave step
+    x = tables.Float16Col(pos=2)        # x position
+    y = tables.Float16Col(pos=3)        # y position
+    z = tables.Float16Col(pos=4)        # z position
+    E = tables.Float16Col(pos=5)        # Energy
+    t = tables.Float16Col(pos=6)        # time
+    NPE = tables.Int16Col(pos=7)        # NPE
+    Likelihood = tables.Float32Col(pos=8)
+    acceptz = tables.Int16Col(pos=9)
+    acceptr = tables.Int16Col(pos=10)
+    acceptE = tables.Int16Col(pos=11)
+    acceptt = tables.Int16Col(pos=12)
 
 def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, timecalib, MC_step, record_mode):
     '''
@@ -80,6 +81,7 @@ def reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
                 vertex0[3] = LH.glm(vertex0, zs, s0s, offsets, chs, probe, darkrate)[0] * E0 ## GLM 计算 E
                 Likelihood_vertex0 = LH.LogLikelihood(vertex0, zs, s0s, offsets, chs, probe, darkrate, timecalib)
                 recon['acceptz'] = 1
+            recon['NPE'] = np.sum(s0s)
 
             # 对 V 采样: 球内随机晃动
             vertex1 = mcmc.Perturb_posT(vertex0, u[recon_step, 1:5], r_max)
