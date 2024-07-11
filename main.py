@@ -28,7 +28,7 @@ parser.add_argument('--pe', dest='pe', metavar='PECoeff[*.h5]', type=str,
 parser.add_argument('--time', dest='time', metavar='TimeCoeff[*.h5]', type=str,
                     default=None, help='The time coefficients file [*.h5] to be loaded')
 
-parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, default=r'/mnt/stage/wengjun/OSIRIS/OSIRISTOP/osiris/simulation-data/pmt_pos.txt',
+parser.add_argument('--PMT', dest='PMT', metavar='PMT[*.txt]', type=str, 
                     help='The PMT file [*.txt] to be loaded')
 
 parser.add_argument('--dark', dest='dark', type=str,
@@ -37,7 +37,7 @@ parser.add_argument('--dark', dest='dark', type=str,
 parser.add_argument('--timecalib', dest='timecalib', type=str,
                     help='time calib file')
 
-parser.add_argument('-n', '--num', dest='num', type=int, default=10,
+parser.add_argument('-n', '--num', dest='num', type=int, default=10000,
                     help='test event nums')
 
 parser.add_argument('--record', dest='record', type=str, default="OFF",
@@ -55,7 +55,7 @@ probe = Detector.LoadProbe(args.probe, args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
 timefile = pd.read_csv(args.timecalib, sep='\s+', header=None, comment="#")
 darkrate = np.loadtxt(args.dark) / 1E9 # Hz 转换成 个 / ns
-timecalib = timefile[6].values
+timecalib = - timefile[6].values
 
 # 重建
 Recon.reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, darkrate, timecalib, args.MCstep, args.record)
