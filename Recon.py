@@ -44,9 +44,12 @@ def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     L2 = - np.sum(Rsum * index, axis=1)
     return L1 + L2
 
-# TODO
-def LHch():
-    pass
+def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
+    PEt = zs + offsets[:, None] + timecalib[chs][:, None]
+    R, Rsum = probe.genRch(vertex, PEt, chs)
+    index = np.arange(R.shape[1])[None, :] < s0s[:, None]
+    L1 = np.sum(np.log(R + darkrate[chs][:, None]) * index, axis=1)
+    return L1 + Rsum
 
 # TODO
 def Regression(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
@@ -135,7 +138,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
         u_V = np.random.normal(0, 1, (MC_step, len(eids), V_variables))
 
         # 给出 vertex, LogLikelihhood 的初值并记录
-        vertex0 = Detector.Init(zs, s0s, offsets, chs, pmt_pos, timecalib) 
+        vertex0 = Detector.Init(zs, s0s, offsets, pmt_pos, timecalib)
         Likelihood_vertex0 = LH(vertex0, chs, offsets, zs, s0s, probe, darkrate, timecalib)
 
         # gibbs iteration
@@ -153,24 +156,26 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             # update z
             s0s[np.arange(s0s.shape[0])[accept_z], ch_s[accept_z]] = s0_s[accept_z]
             nu_lcs[np.arange(nu_lcs.shape[0])[accept_z], ch_s[accept_z]] = nu_lc_s[accept_z]
-            if z_s.shape[2] > z_o.shape[2]:
-                supply = np.zeros((zs.shape[0], zs.shape[1], z_s.shape[2] - z_o.shape[2]), dtype=np.float32)
+            if z_s.shape[1] > z_o.shape[1]:
+                supply = np.zeros((zs.shape[0], zs.shape[1], z_s.shape[1] - z_o.shape[1]), dtype=np.float32)
                 zs = np.concatenate((zs, supply), axis=2)
             zs[np.arange(zs.shape[0])[accept_z], ch_s[accept_z]] = z_s[accept_z]
             # update Likelihood
-            Likelihood_vertex0[accept_z] = LH(vertex0, chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
+            Likelihood_vertex0[accept_z] = LH(vertex0[accept_z], chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
 
             # 对 r 采样
             vertex1 = vertex0.copy()
             vertex1[:, :3] = vertex1[:, :3] + r_sigma * u_V[step, :, :3]
-            if Detector.Boundary(vertex1):
-                # regression on E
-                vertex1[:, 3] = Regression(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
-                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
-                accept_r = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
-                # update r
-                vertex0[accept_r] = vertex1[accept_r]
-                Likelihood_vertex0[accept_r] = Likelihood_vertex1[accept_r]
+            accept_rB = Detector.Boundary(vertex1)
+            # regression on E
+            breakpoint()
+            vertex1[:, 3] = Regression(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            accept_rL = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
+            accept_r = accept_rL & accept_rB
+            # update r
+            vertex0[accept_r] = vertex1[accept_r]
+            Likelihood_vertex0[accept_r] = Likelihood_vertex1[accept_r]
 
             # 对 t 采样
             vertex2 = vertex0.copy()
