@@ -32,16 +32,15 @@ dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'
                   ('Likelihood', '<f4'), ('acceptz', '<i4'), ('acceptr', '<i4'),
                   ('acceptt', '<i4')])
 
-def LH(vertex, fires, chs, offsets, zs, s0s, probe, darkrate, timecalib):
+def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     '''
     计算 Likelihood
     '''
-    PEt = zs + offsets[:,:,None] - vertex[:, 4][:,None,None] + timecalib[chs][:,:,None]
-    R = probe.genR(vertex, PEt, chs, fires)
+    PEt = zs + offsets[:, :, None] + timecalib[None, :, None]
+    R, Rsum = probe.genR(vertex, PEt)
     index = np.arange(R.shape[2])[None, None, :] < s0s[:, :, None]
-    L1 = np.sum(np.log(R + darkrate[chs][:,:,None]) * index, axis=(1,2))
-    Rsum = probe.genRsum(vertex, chs, fires)
-    index = np.arange(Rsum.shape[1])[None, :] < fires[:, None]
+    L1 = np.sum(np.log(R + darkrate[chs][:, :, None]) * index, axis=(1,2))
+    index = s0s > 0
     L2 = - np.sum(Rsum * index, axis=1)
     return L1 + L2
 
@@ -50,14 +49,13 @@ def LHch():
     pass
 
 # TODO
-def Regression(vertex, fires, chs, offsets, zs, s0s, probe, darkrate, timecalib):
+def Regression(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     pass
 
 def concat(iterator, Entries):
     '''
     将多个事例数组拼接
     eids.shape = (N, 1)
-    fires.shape = (N, 1)
     chs.shape = (N, chnums)
     offsets.shape = (N, chnums)
     zs.shape = (N, chnums, y)
@@ -65,7 +63,6 @@ def concat(iterator, Entries):
     nu_lcs.shape = (N, chnums)
     '''
     eids = np.zeros(Entries, dtype=np.int64)
-    fires = np.zeros(Entries, dtype=np.int32)
     chs = np.zeros((Entries, chnums), dtype=np.int32)
     offsets = np.zeros((Entries, chnums), dtype=np.float32)
     zs = np.zeros((Entries, chnums, 10), dtype=np.float32)
@@ -77,7 +74,6 @@ def concat(iterator, Entries):
         # 取数后重置
         if i == 0:
             eids = np.zeros(Entries, dtype=np.int64)
-            fires = np.zeros(Entries, dtype=np.int32)
             chs = np.zeros((Entries, chnums), dtype=np.int32)
             offsets = np.zeros((Entries, chnums), dtype=np.float32)
             zs = np.zeros((Entries, chnums, 10), dtype=np.float32)
@@ -87,8 +83,7 @@ def concat(iterator, Entries):
         # 数据类型更正
         s0 = s0.astype('int32')
         eids[i] = eid
-        fires[i] = len(ch)
-        chs[i, :fires[i]] = ch
+        chs[i, :len(ch)] = ch
         offsets[i, ch] = offset
         s0s[i, ch] = s0
         nu_lcs[i, ch] = nu_lc
@@ -100,9 +95,9 @@ def concat(iterator, Entries):
         samplers.append(sampler)
         # 取数
         if i == Entries - 1:
-            yield eids, fires, chs, offsets, zs, s0s, nu_lcs, samplers
+            yield eids, chs, offsets, zs, s0s, nu_lcs, samplers
     # 不足 Entries 个事例取完
-    yield eids[:i], fires[:i], chs[:i], offsets[:i], zs[:i], s0s[:i], nu_lcs[:i], samplers[:i]
+    yield eids[:i], chs[:i], offsets[:i], zs[:i], s0s[:i], nu_lcs[:i], samplers[:i]
                     
 def resampleZ(iterators, events, maxs):
     '''
@@ -133,7 +128,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
     h5file = tables.open_file(output, mode="w", title="Detector", filters = tables.Filters(complevel=9))
     group = "/"
     ReconTable = h5file.create_table(group, "Recon", DataType, "Recon")
-    for eids, fires, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
+    for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
         # 设定随机数
         np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
         u_gibbs = np.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables))
@@ -141,7 +136,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
 
         # 给出 vertex, LogLikelihhood 的初值并记录
         vertex0 = Detector.Init(zs, s0s, offsets, chs, pmt_pos, timecalib) 
-        Likelihood_vertex0 = LH(vertex0, fires, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+        Likelihood_vertex0 = LH(vertex0, chs, offsets, zs, s0s, probe, darkrate, timecalib)
 
         # gibbs iteration
         for step in range(MC_step):
@@ -163,15 +158,15 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
                 zs = np.concatenate((zs, supply), axis=2)
             zs[np.arange(zs.shape[0])[accept_z], ch_s[accept_z]] = z_s[accept_z]
             # update Likelihood
-            Likelihood_vertex0[accept_z] = LH(vertex0, fires[accept_z], chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
+            Likelihood_vertex0[accept_z] = LH(vertex0, chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
 
             # 对 r 采样
             vertex1 = vertex0.copy()
             vertex1[:, :3] = vertex1[:, :3] + r_sigma * u_V[step, :, :3]
             if Detector.Boundary(vertex1):
                 # regression on E
-                vertex1[:, 3] = Regression(vertex1, fires, chs, offsets, zs, s0s, probe, darkrate, timecalib)
-                Likelihood_vertex1 = LH(vertex1, fires, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                vertex1[:, 3] = Regression(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
                 accept_r = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
                 # update r
                 vertex0[accept_r] = vertex1[accept_r]
@@ -180,7 +175,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             # 对 t 采样
             vertex2 = vertex0.copy()
             vertex2[:, 4] = vertex2[:, 4] + T_sigma * u_V[step, :, 3]
-            Likelihood_vertex2 = LH(vertex2, fires, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            Likelihood_vertex2 = LH(vertex2, chs, offsets, zs, s0s, probe, darkrate, timecalib)
             accept_t = Likelihood_vertex2 - Likelihood_vertex0 > u_gibbs[step, :, 2]
             # update t
             vertex0[accept_t] = vertex2[accept_t]
