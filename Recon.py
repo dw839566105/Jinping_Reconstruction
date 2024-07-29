@@ -58,11 +58,11 @@ def concat(iterator, Entries):
     将多个事例数组拼接
     eids.shape = (N, 1)
     fires.shape = (N, 1)
-    chs.shape = (N, x)
-    offsets.shape = (N, x)
-    zs.shape = (N, x, y)
-    s0s.shape = (N, x)
-    nu_lcs.shape = (N, x)
+    chs.shape = (N, chnums)
+    offsets.shape = (N, chnums)
+    zs.shape = (N, chnums, y)
+    s0s.shape = (N, chnums)
+    nu_lcs.shape = (N, chnums)
     '''
     eids = np.zeros(Entries, dtype=np.int64)
     fires = np.zeros(Entries, dtype=np.int32)
@@ -88,26 +88,15 @@ def concat(iterator, Entries):
         s0 = s0.astype('int32')
         eids[i] = eid
         fires[i] = len(ch)
-        # 通道数量扩展
-        ch_increment = fires[i] - chs.shape[1]
-        if ch_increment > 0:
-            supply = np.zeros((Entries, ch_increment), dtype=np.int32)
-            chs = np.concatenate((chs, supply), axis=1)
-            s0s = np.concatenate((s0s, supply), axis=1)
-            supply = np.zeros((Entries, ch_increment), dtype=np.float32)
-            offsets = np.concatenate((offsets, supply), axis=1)
-            nu_lcs = np.concatenate((nu_lcs, supply), axis=1)
-            supply = np.zeros((Entries, ch_increment, zs.shape[2]), dtype=np.float32)
-            zs = np.concatenate((zs, supply), axis=1)
         chs[i, :fires[i]] = ch
-        offsets[i, :fires[i]] = offset
-        s0s[i, :fires[i]] = s0
-        nu_lcs[i, :fires[i]] = nu_lc
+        offsets[i, ch] = offset
+        s0s[i, ch] = s0
+        nu_lcs[i, ch] = nu_lc
         # NPE 扩展
         if z.shape[1] > zs.shape[2]:
             supply = np.zeros((Entries, zs.shape[1], z.shape[1] - zs.shape[2]), dtype=np.float32)
             zs = np.concatenate((zs, supply), axis=2)
-        zs[i, :z.shape[0], :z.shape[1]] = z
+        zs[i, ch, :z.shape[1]] = z
         samplers.append(sampler)
         # 取数
         if i == Entries - 1:
@@ -149,9 +138,6 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
         np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
         u_gibbs = np.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables))
         u_V = np.random.normal(0, 1, (MC_step, len(eids), V_variables))
-        
-        # test
-        Likelihood_vertex0 = LH(np.zeros((len(eids), 5)), fires, chs, offsets, zs, s0s, probe, darkrate, timecalib)
 
         # 给出 vertex, LogLikelihhood 的初值并记录
         vertex0 = Detector.Init(zs, s0s, offsets, chs, pmt_pos, timecalib) 
@@ -162,20 +148,20 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             # 对 z 采样
             ich_s, z_s, s0_s, nu_lc_s = resampleZ(samplers, len(eids), zs.shape[2])
             ch_s = chs[np.arange(chs.shape[0]), ich_s]
-            z_o = zs[np.arange(zs.shape[0]), ich_s]
-            s0_o = s0s[np.arange(s0s.shape[0]), ich_s]
-            nu_lc_o = nu_lcs[np.arange(nu_lcs.shape[0]), ich_s]
-            offset_s = offsets[np.arange(offsets.shape[0]), ich_s]
+            z_o = zs[np.arange(zs.shape[0]), ch_s]
+            s0_o = s0s[np.arange(s0s.shape[0]), ch_s]
+            nu_lc_o = nu_lcs[np.arange(nu_lcs.shape[0]), ch_s]
+            offset_s = offsets[np.arange(offsets.shape[0]), ch_s]
             LH_z_sample = LHch(vertex0, ch_s, z_s, s0_s, offset_s, probe, darkrate, timecalib)
             LH_z_origin = LHch(vertex0, ch_s, z_o, s0_o, offset_s, probe, darkrate, timecalib)
             accept_z = (nu_lc_o - nu_lc_s + LH_z_sample - LH_z_origin) > u_gibbs[step, :, 0]
             # update z
-            s0s[np.arange(s0s.shape[0])[accept_z], ich_s[accept_z]] = s0_s[accept_z]
-            nu_lcs[np.arange(nu_lcs.shape[0])[accept_z], ich_s[accept_z]] = nu_lc_s[accept_z]
+            s0s[np.arange(s0s.shape[0])[accept_z], ch_s[accept_z]] = s0_s[accept_z]
+            nu_lcs[np.arange(nu_lcs.shape[0])[accept_z], ch_s[accept_z]] = nu_lc_s[accept_z]
             if z_s.shape[2] > z_o.shape[2]:
                 supply = np.zeros((zs.shape[0], zs.shape[1], z_s.shape[2] - z_o.shape[2]), dtype=np.float32)
                 zs = np.concatenate((zs, supply), axis=2)
-            zs[np.arange(zs.shape[0])[accept_z], ich_s[accept_z]] = z_s[accept_z]
+            zs[np.arange(zs.shape[0])[accept_z], ch_s[accept_z]] = z_s[accept_z]
             # update Likelihood
             Likelihood_vertex0[accept_z] = LH(vertex0, fires[accept_z], chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
 
