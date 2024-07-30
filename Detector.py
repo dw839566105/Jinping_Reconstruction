@@ -4,7 +4,7 @@
 Detector: jinping_1ton
 '''
 from DetectorConfig import *
-from polynomial import *
+from numba import njit
 import numpy as np
 import tables
 
@@ -14,6 +14,15 @@ def Boundary(vertex):
     探测器相关: Jinping_1ton
     '''
     return np.sum(np.square(vertex[:, :3]), axis=1) <= 1
+
+@njit
+def legval(x, n):
+    res = np.zeros((n,) + x.shape)
+    res[0] = 1
+    res[1] = x
+    for i in range(2, n):
+        res[i] = ((2 * i - 1) * x * res[i - 1] - (i - 1) * res[i - 2]) / i
+    return res
 
 class Probe:
     '''
