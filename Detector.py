@@ -43,7 +43,7 @@ class Probe:
         base_r = legval(rho, np.max([self.coeff_pe.shape[1], self.coeff_time.shape[1]]))
         return base_t, base_r
 
-    def genR(self, vertex, PEt):
+    def genR(self, vertex, PEt, sum_mode = True):
         '''
         调用 probe (全通道)
         '''
@@ -54,6 +54,8 @@ class Probe:
         Ti = np.einsum('aij,ak,ki->ji', base_t[:self.coeff_time.shape[0]], self.coeff_time, base_r[:self.coeff_time.shape[1]])
         t = PEt - Ti.T[:,:, None] - vertex[:, -1][:, None, None]
         R = tau * (1 - tau) / ts * np.exp(- np.where(t < 0, t * (tau - 1), t * tau) / ts) * NPE.T[:, :, None] * vertex[:, 3][:, None, None] / E0
+        if not sum_mode:
+            return R
         # 分类计算 R 的积分
         down = - Ti.T - vertex[:, -1][:, None]
         Rsum = np.zeros_like(down)

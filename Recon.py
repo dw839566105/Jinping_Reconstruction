@@ -3,12 +3,17 @@
 重建模拟数据的位置、能量
 '''
 import numpy as np
+from numba import njit
 import tables
 import Detector
 from config import *
-from DetectorConfig import chnums
+from DetectorConfig import chnums, wavel
 from tqdm import tqdm
 from fsmp_reader import FSMPreader
+import statsmodels.api as sm
+# sm.families.Poisson 只允许 log 的 link，其他 link 都会被视为 unsafe 弹出 warning
+import warnings
+warnings.filterwarnings("ignore")
 
 class DataType(tables.IsDescription):
     '''
@@ -34,7 +39,7 @@ dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'
 
 def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     '''
-    计算 Likelihood
+    计算 Likelihood (全通道)
     '''
     PEt = zs + offsets[:, :, None] + timecalib[None, :, None]
     R, Rsum = probe.genR(vertex, PEt)
@@ -45,15 +50,46 @@ def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     return L1 + L2
 
 def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
+    '''
+    计算 Likelihood (单通道)
+    '''
     PEt = zs + offsets[:, None] + timecalib[chs][:, None]
     R, Rsum = probe.genRch(vertex, PEt, chs)
     index = np.arange(R.shape[1])[None, :] < s0s[:, None]
     L1 = np.sum(np.log(R + darkrate[chs][:, None]) * index, axis=1)
     return L1 + Rsum
 
-# TODO
-def Regression(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
-    pass
+def glm(data):
+    return sm.GLM(data[1].reshape(-1), data[0].reshape(-1), family = sm.families.Poisson(link = sm.families.links.identity()), offset = data[2].reshape(-1)).fit().params[0]
+
+def vectorized_hist(data, weights, bins):
+    def histogram(data, weights, bins):
+        result = np.zeros((data.shape[0], data.shape[1], bins.shape[0] - 1))
+        for i in range(data.shape[0]):
+            for j in range(data.shape[1]):
+                hist, _ = np.histogram(data[i, j], bins=bins, weights=weights[i, j])
+                result[i, j] = hist
+        return result
+    vectorized_histogram = np.vectorize(histogram, signature='(n,m,l),(n,m,l),(i)->(n,m,k)')
+    result = vectorized_histogram(data, weights.astype(np.int16), bins)
+    return result
+
+def Regression(vertex, offsets, zs, s0s, probe, darkrate, timecalib):
+    '''
+    回归能量
+    '''
+    index = np.arange(zs.shape[2])[None, None, :] < s0s[:, :, None]
+    PEt = zs + offsets[:, :, None] + timecalib[None, :, None]
+    bound = np.arange(0, wavel + tbin, tbin)
+    tx = np.arange(tbin / 2, wavel + tbin / 2, tbin)
+    tx = np.broadcast_to(tx, (zs.shape[0], zs.shape[1], tx.shape[0]))
+    X = probe.genR(vertex, tx, False) * tbin
+    Y = vectorized_hist(PEt, index, bound)
+    darkrate_3d = np.expand_dims(darkrate, axis=(0, 2))
+    B = np.broadcast_to(darkrate_3d, (X.shape)) * tbin
+    data = np.stack([X, Y, B])
+    E = np.apply_along_axis(glm, 1, data)
+    return E
 
 def concat(iterator, Entries):
     '''
@@ -168,8 +204,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             vertex1[:, :3] = vertex1[:, :3] + r_sigma * u_V[step, :, :3]
             accept_rB = Detector.Boundary(vertex1)
             # regression on E
-            breakpoint()
-            vertex1[:, 3] = Regression(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            vertex1[:, 3] = Regression(vertex1, offsets, zs, s0s, probe, darkrate, timecalib)
             Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
             accept_rL = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
             accept_r = accept_rL & accept_rB
