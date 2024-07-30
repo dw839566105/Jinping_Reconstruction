@@ -60,10 +60,6 @@ def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
     return L1 + Rsum
 
 def glm(data):
-    breakpoint()
-    return sm.GLM(data[1].reshape(-1), data[0].reshape(-1), family = sm.families.Poisson(link = sm.families.links.identity()), offset = data[2].reshape(-1)).fit().params[0]
-
-def glm(data):
     length = len(data) // 3
     result = sm.GLM(data[length: 2 * length], data[:length], family=sm.families.Poisson(link=sm.families.links.identity()), offset=data[2 * length:]).fit().params[0]
     return result
@@ -224,7 +220,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             Likelihood_vertex0[accept_t] = Likelihood_vertex2[accept_t]
 
             # write into tables
-            result_step = np.hstack((eids, np.repeat(step, len(eids)), vertex0, np.sum(s0s, axis=1), Likelihood_vertex0, accept_z, accept_r, accept_t)).astype(dtype)
+            result_step = np.hstack((eids, np.repeat(step, len(eids)), vertex0[:,0], vertex0[:,1], vertex0[:,2], vertex0[:,3], vertex0[:,4], np.sum(s0s, axis=1), Likelihood_vertex0, accept_z, accept_r, accept_t)).astype(dtype)
             ReconTable.append(result_step)
     
     ReconTable.flush()
