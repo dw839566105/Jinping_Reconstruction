@@ -53,9 +53,11 @@ class Probe:
         # 计算 R
         Ti = np.einsum('aij,ak,ki->ji', base_t[:self.coeff_time.shape[0]], self.coeff_time, base_r[:self.coeff_time.shape[1]])
         t = PEt - Ti.T[:,:, None] - vertex[:, -1][:, None, None]
-        R = tau * (1 - tau) / ts * np.exp(- np.where(t < 0, t * (tau - 1), t * tau) / ts) * NPE.T[:, :, None] * vertex[:, 3][:, None, None] / E0
+        R = tau * (1 - tau) / ts * np.exp(- np.where(t < 0, t * (tau - 1), t * tau) / ts) * NPE.T[:, :, None] / E0
         if not sum_mode:
+            # 返回单位能量 R
             return R
+        R *= vertex[:, 3][:, None, None]
         # 分类计算 R 的积分
         down = - Ti.T - vertex[:, -1][:, None]
         Rsum = np.zeros_like(down)

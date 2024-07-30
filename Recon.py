@@ -60,18 +60,20 @@ def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
     return L1 + Rsum
 
 def glm(data):
+    breakpoint()
     return sm.GLM(data[1].reshape(-1), data[0].reshape(-1), family = sm.families.Poisson(link = sm.families.links.identity()), offset = data[2].reshape(-1)).fit().params[0]
 
-def vectorized_hist(data, weights, bins):
-    def histogram(data, weights, bins):
-        result = np.zeros((data.shape[0], data.shape[1], bins.shape[0] - 1))
-        for i in range(data.shape[0]):
-            for j in range(data.shape[1]):
-                hist, _ = np.histogram(data[i, j], bins=bins, weights=weights[i, j])
-                result[i, j] = hist
-        return result
-    vectorized_histogram = np.vectorize(histogram, signature='(n,m,l),(n,m,l),(i)->(n,m,k)')
-    result = vectorized_histogram(data, weights.astype(np.int16), bins)
+def glm(data):
+    length = len(data) // 3
+    result = sm.GLM(data[length: 2 * length], data[:length], family=sm.families.Poisson(link=sm.families.links.identity()), offset=data[2 * length:]).fit().params[0]
+    return result
+
+@njit
+def histogram(data, weights, bins):
+    result = np.zeros((data.shape[0], data.shape[1], bins.shape[0] - 1))
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            result[i, j], _ = np.histogram(data[i, j][weights[i,j]], bins=bins)
     return result
 
 def Regression(vertex, offsets, zs, s0s, probe, darkrate, timecalib):
@@ -84,10 +86,10 @@ def Regression(vertex, offsets, zs, s0s, probe, darkrate, timecalib):
     tx = np.arange(tbin / 2, wavel + tbin / 2, tbin)
     tx = np.broadcast_to(tx, (zs.shape[0], zs.shape[1], tx.shape[0]))
     X = probe.genR(vertex, tx, False) * tbin
-    Y = vectorized_hist(PEt, index, bound)
+    Y = histogram(PEt, index, bound)
     darkrate_3d = np.expand_dims(darkrate, axis=(0, 2))
     B = np.broadcast_to(darkrate_3d, (X.shape)) * tbin
-    data = np.stack([X, Y, B])
+    data = np.column_stack((X.reshape(X.shape[0], -1), Y.reshape(Y.shape[0], -1), B.reshape(B.shape[0], -1)))
     E = np.apply_along_axis(glm, 1, data)
     return E
 
