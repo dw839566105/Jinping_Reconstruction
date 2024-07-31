@@ -172,7 +172,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
 
         # 设定随机数
         np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
-        u_gibbs = np.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables))
+        u_gibbs = np.log(np.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)))
         u_V = np.random.normal(0, 1, (MC_step, len(eids), V_variables))
 
         # 给出 vertex, LogLikelihhood 的初值并记录
