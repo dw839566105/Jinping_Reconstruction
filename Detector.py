@@ -76,7 +76,7 @@ class Probe:
         Rsum[index2] = tau * (np.exp((1- tau) * (down[index2] + wavel) / ts) - np.exp((1- tau) * down[index2] / ts))
         index3 = ~(index1 | index2)
         Rsum[index3] = 1 + (tau - 1) * np.exp(- tau * (down[index3] + wavel) / ts) - tau * np.exp((1- tau) * down[index3] / ts)
-        return R, Rsum
+        return R, Rsum * NPE.T
 
     def genBasech(self, vertex, chs):
         '''
