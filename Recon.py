@@ -167,8 +167,8 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
     group = "/"
     ReconTable = h5file.create_table(group, "Recon", DataType, "Recon")
     for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
-        # 预分配储存空间
-
+        # 预分配储存数组
+        recon_step = np.zeros(len(eids), dtype=dtype)
 
         # 设定随机数
         np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
@@ -231,10 +231,20 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             Likelihood_vertex0[accept_t] = Likelihood_vertex1[accept_t]
 
             # write into tables
-            result_step = np.hstack((eids, np.repeat(step, len(eids)), vertex0[:,0], vertex0[:,1], vertex0[:,2], vertex0[:,3], vertex0[:,4], np.sum(s0s, axis=1), Likelihood_vertex0, accept_z, accept_r, accept_E, accept_t)).astype(dtype)
-            ReconTable.append(result_step)
-
-        break
+            recon_step['EventID'] = eids
+            recon_step['step'] = step
+            recon_step['x'] = vertex0[:,0]
+            recon_step['y'] = vertex0[:, 1]
+            recon_step['z'] = vertex0[:, 2]
+            recon_step['E'] = vertex0[:, 3]
+            recon_step['t'] = vertex0[:, 4]
+            recon_step['NPE'] = np.sum(s0s, axis=1)
+            recon_step['Likelihood'] = Likelihood_vertex0
+            recon_step['acceptz'] = accept_z
+            recon_step['acceptr'] = accept_r
+            recon_step['acceptE'] = accept_E
+            recon_step['acceptt'] = accept_t
+            ReconTable.append(recon_step)
     
     ReconTable.flush()
     h5file.close()

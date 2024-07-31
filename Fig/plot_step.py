@@ -17,7 +17,6 @@ psr.add_argument("-o", dest="opt", type=str, help="output file")
 psr.add_argument("-t", dest="truth", type=str, default=None, help="truth file")
 psr.add_argument("--switch", dest="switch", type=str, help="switch")
 psr.add_argument("--mode", dest="mode", type=str, help="data mode")
-psr.add_argument("--record", dest="record", type=str, help="record mode")
 psr.add_argument("-n", dest="num", type=int, default=1, help="Entries")
 psr.add_argument("-s", dest="step", type=int, help="MC step")
 psr.add_argument("ipt", type=str, help="input file")
@@ -25,8 +24,6 @@ args = psr.parse_args()
 
 with h5py.File(args.ipt, "r") as f:
     recon = pd.DataFrame(f['Recon'][:])
-    if args.record == "ON":
-        sample = pd.DataFrame(f['Sample'][:])
 
 if args.mode == "sim":
     with uproot.open(args.truth) as ipt:
@@ -47,62 +44,15 @@ with PdfPages(args.opt) as pp:
             truth_data = truth[truth['EventID'] == eid]
         acceptz = data['acceptz'].sum() / data.shape[0]
         acceptr = data['acceptr'].sum() / data.shape[0]
+        acceptE = data['acceptE'].sum() / data.shape[0]
+        acceptt = data['acceptt'].sum() / data.shape[0]
         print(f"eid-{eid}")
         print(f"acceptz-{acceptz}")
         print(f"acceptr-{acceptr}")
+        print(f"acceptE-{acceptE}")
+        print(f"acceptt-{acceptt}")
         data_r = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2 +  data['z'].values ** 2) * shell
         data_xy = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2) * shell
-
-        if args.record == "ON":
-            data_sample = sample[sample['EventID'] == eid]
-            fig, ax = plt.subplots(figsize=(25, 25))
-            x = np.sqrt(data_sample['x'].values ** 2 + data_sample['y'].values ** 2) * shell
-            y = data_sample['z'].values * shell
-            z = data_sample['Likelihood'].values
-            xi = np.linspace(0, shell, 100)
-            yi = np.linspace(-shell, shell, 100)
-            triang = tri.Triangulation(x, y)
-            interpolator = tri.LinearTriInterpolator(triang, z)
-            Xi, Yi = np.meshgrid(xi, yi)
-            zi = interpolator(Xi, Yi)
-            ax.contour(xi, yi, zi, levels=14, linewidths=0.1, colors='k')
-            cntr1 = ax.contourf(xi, yi, zi, levels=10, cmap="RdBu_r")
-            fig.colorbar(cntr1, ax=ax)
-            ax.plot(x, y, 'ko', ms=3)
-            ax.set(xlim=(0, shell), ylim=(-shell, shell))
-            ax.set_title(f'grid and contour {len(x)} points')
-            ax.set_xlabel('sqrt(x^2 + y^2) / m')
-            ax.set_ylabel('z / m')
-            pp.savefig(fig)
-            plt.close(fig)
-
-            fig, ax = plt.subplots(figsize=(25, 25))
-            x = np.sqrt(data_sample['x'].values ** 2 + data_sample['y'].values ** 2) * shell
-            y = data_sample['z'].values * shell
-            z = data_sample['Likelihood'].values
-            xi = np.linspace(0, shell, 100)
-            yi = np.linspace(-shell, shell, 100)
-            triang = tri.Triangulation(x, y)
-            interpolator = tri.LinearTriInterpolator(triang, z)
-            Xi, Yi = np.meshgrid(xi, yi)
-            zi = interpolator(Xi, Yi)
-            ax.contour(xi, yi, zi, levels=14, linewidths=0.1, colors='k')
-            cntr1 = ax.contourf(xi, yi, zi, levels=10, cmap="RdBu_r")
-            fig.colorbar(cntr1, ax=ax)
-            ax.set(xlim=(0, shell), ylim=(-shell, shell))
-            ax.set_title(f'grid and contour {len(x)} points')
-            ax.set_xlabel('sqrt(x^2 + y^2) / m')
-            ax.set_ylabel('z / m')
-            pp.savefig(fig)
-            plt.close(fig)
-
-            fig, ax = plt.subplots(figsize=(25, 5))
-            ax.plot(data_sample['Likelihood'].values)
-            ax.set_title(f'LogLikelihood Evolution - Event{eid}')
-            ax.set_ylabel('LogLikelihood')
-            ax.set_xlabel('step')
-            pp.savefig(fig)
-            plt.close(fig)
         
         if args.switch == "ON":
             # loglikelihood distribution

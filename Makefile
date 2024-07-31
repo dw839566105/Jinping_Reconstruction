@@ -15,7 +15,7 @@ darknoise.txt: MonitorRun0257_Run0290.root
 # 事例重建
 tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
 	mkdir -p $(dir $@)
-	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 100 -m $(MCstep) -o $@
+	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
@@ -34,11 +34,11 @@ Fig/BiPo.pdf: Fig/BiPo.h5
 # 单事例不同步骤重建结果分布图
 Fig/steps/sim/%.pdf: tvE/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_step.py $< -o $@ -n 5 -s $(MCstep) --switch OFF --mode sim -t /JNE/resolution/$*.root --record OFF
+	python3 Fig/plot_step.py $< -o $@ -n 5 -s $(MCstep) --switch OFF --mode sim -t /JNE/resolution/$*.root
 
 Fig/steps/raw/%.pdf: tvE/%.h5
 	mkdir -p $(dir $@)
-	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch ON --mode raw --record OFF
+	python3 Fig/plot_step.py $< -o $@ -n 10 -s $(MCstep) --switch ON --mode raw
 
 ## 模拟数据：真值与重建对比图 (已经不再兼容，待整理)
 # 球内均匀
@@ -61,7 +61,7 @@ Fig/sim/pointz.pdf: Fig/sim/pointz.h5
 # time profile
 profile/%.stat: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
 	mkdir -p $(dir $@)
-	python3 -m cProfile -o $@ main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 2000 -m $(MCstep) -o $@
+	python3 -m cProfile -o $@ main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@.h5
 
 profile/%.svg: profile/%.stat
 	gprof2dot -f pstats $^ | dot -Tsvg -o $@
