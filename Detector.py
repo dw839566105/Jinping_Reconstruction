@@ -58,9 +58,9 @@ class Probe:
         '''
         base_t, base_r = self.genBase(vertex)
         # 计算空间项
-        NPE = np.exp(np.einsum('aij,ak,ki->ji', base_t[:self.coeff_pe.shape[0]], self.coeff_pe, base_r[:self.coeff_pe.shape[1]]))
+        NPE = np.exp(np.sum(np.matmul(base_t[:self.coeff_pe.shape[0]].T, self.coeff_pe) * base_r[:self.coeff_pe.shape[1]].T[None, :, :], axis=2))
         # 计算 R
-        Ti = np.einsum('aij,ak,ki->ji', base_t[:self.coeff_time.shape[0]], self.coeff_time, base_r[:self.coeff_time.shape[1]])
+        Ti = np.sum(np.matmul(base_t[:self.coeff_time.shape[0]].T, self.coeff_time) * base_r[:self.coeff_time.shape[1]].T[None, :, :], axis=2)
         t = PEt - Ti.T[:,:, None] - vertex[:, -1][:, None, None]
         R = tau * (1 - tau) / ts * np.exp(- np.where(t < 0, t * (tau - 1), t * tau) / ts) * NPE.T[:, :, None] / E0
         if not sum_mode:
