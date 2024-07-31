@@ -30,12 +30,13 @@ class DataType(tables.IsDescription):
     Likelihood = tables.Float32Col(pos=8)
     acceptz = tables.Int32Col(pos=9)
     acceptr = tables.Int32Col(pos=10)
-    acceptt = tables.Int32Col(pos=11)
+    acceptE = tables.Int32Col(pos=11)
+    acceptt = tables.Int32Col(pos=12)
 
 dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'),
                   ('z', '<f2'), ('E', '<f2'), ('t', '<f2'), ('NPE', '<i4'),
                   ('Likelihood', '<f4'), ('acceptz', '<i4'), ('acceptr', '<i4'),
-                  ('acceptt', '<i4')])
+                  ('acceptE', '<i4'), ('acceptt', '<i4')])
 
 def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     '''
@@ -166,6 +167,9 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
     group = "/"
     ReconTable = h5file.create_table(group, "Recon", DataType, "Recon")
     for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
+        # 预分配储存空间
+
+
         # 设定随机数
         np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
         u_gibbs = np.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables))
@@ -201,8 +205,6 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             vertex1 = vertex0.copy()
             vertex1[:, :3] = vertex1[:, :3] + r_sigma * u_V[step, :, :3]
             accept_rB = Detector.Boundary(vertex1)
-            # regression on E
-            vertex1[:, 3] = Regression(vertex1, offsets, zs, s0s, probe, darkrate, timecalib)
             Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
             accept_rL = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
             accept_r = accept_rL & accept_rB
@@ -210,18 +212,29 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             vertex0[accept_r] = vertex1[accept_r]
             Likelihood_vertex0[accept_r] = Likelihood_vertex1[accept_r]
 
+            # 对 E 采样
+            vertex1 = vertex0.copy()
+            vertex1[:, 3] = vertex1[:, 3] + E_sigma * u_V[step, :, 3]
+            Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            accept_E = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 2]
+            # update E
+            vertex0[accept_E] = vertex1[accept_E]
+            Likelihood_vertex0[accept_E] = Likelihood_vertex1[accept_E]
+
             # 对 t 采样
-            vertex2 = vertex0.copy()
-            vertex2[:, 4] = vertex2[:, 4] + T_sigma * u_V[step, :, 3]
-            Likelihood_vertex2 = LH(vertex2, chs, offsets, zs, s0s, probe, darkrate, timecalib)
-            accept_t = Likelihood_vertex2 - Likelihood_vertex0 > u_gibbs[step, :, 2]
+            vertex1 = vertex0.copy()
+            vertex1[:, 4] = vertex1[:, 4] + T_sigma * u_V[step, :, 4]
+            Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            accept_t = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 3]
             # update t
-            vertex0[accept_t] = vertex2[accept_t]
-            Likelihood_vertex0[accept_t] = Likelihood_vertex2[accept_t]
+            vertex0[accept_t] = vertex1[accept_t]
+            Likelihood_vertex0[accept_t] = Likelihood_vertex1[accept_t]
 
             # write into tables
-            result_step = np.hstack((eids, np.repeat(step, len(eids)), vertex0[:,0], vertex0[:,1], vertex0[:,2], vertex0[:,3], vertex0[:,4], np.sum(s0s, axis=1), Likelihood_vertex0, accept_z, accept_r, accept_t)).astype(dtype)
+            result_step = np.hstack((eids, np.repeat(step, len(eids)), vertex0[:,0], vertex0[:,1], vertex0[:,2], vertex0[:,3], vertex0[:,4], np.sum(s0s, axis=1), Likelihood_vertex0, accept_z, accept_r, accept_E, accept_t)).astype(dtype)
             ReconTable.append(result_step)
+
+        break
     
     ReconTable.flush()
     h5file.close()
