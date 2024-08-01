@@ -3,7 +3,10 @@
 重建模拟数据的位置、能量
 '''
 import cupy as cp
+<<<<<<< HEAD
 import numpy as np
+=======
+>>>>>>> 2370eb5 (移除 njit, numpy 转 cupy)
 import h5py
 import Detector
 from config import *
@@ -143,10 +146,10 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
 
         for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
             # 预分配储存数组
-            recon_step = np.zeros(len(eids), dtype=dtype)
+            recon_step = cp.zeros(len(eids), dtype=dtype)
 
             # 设定随机数
-            cp.random.seed(eids[0].get() % 1000000) # 取第一个事例编号设定随机数种子
+            cp.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
             u_gibbs = cp.log(cp.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)))
             u_V = cp.random.normal(0, 1, (MC_step, len(eids), V_variables))
 
@@ -208,17 +211,17 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
                 # write into tables
                 recon_step['EventID'] = cp.asnumpy(eids)
                 recon_step['step'] = step
-                recon_step['x'] = cp.asnumpy(vertex0[:, 0])
-                recon_step['y'] = cp.asnumpy(vertex0[:, 1])
-                recon_step['z'] = cp.asnumpy(vertex0[:, 2])
-                recon_step['E'] = cp.asnumpy(vertex0[:, 3])
-                recon_step['t'] = cp.asnumpy(vertex0[:, 4])
-                recon_step['NPE'] = cp.asnumpy(cp.sum(s0s, axis=1))
-                recon_step['Likelihood'] = cp.asnumpy(Likelihood_vertex0)
-                recon_step['acceptz'] = cp.asnumpy(accept_z)
-                recon_step['acceptr'] = cp.asnumpy(accept_r)
-                recon_step['acceptE'] = cp.asnumpy(accept_E)
-                recon_step['acceptt'] = cp.asnumpy(accept_t)
+                recon_step['x'] = vertex0[:,0]
+                recon_step['y'] = vertex0[:, 1]
+                recon_step['z'] = vertex0[:, 2]
+                recon_step['E'] = vertex0[:, 3]
+                recon_step['t'] = vertex0[:, 4]
+                recon_step['NPE'] = cp.sum(s0s, axis=1)
+                recon_step['Likelihood'] = Likelihood_vertex0
+                recon_step['acceptz'] = accept_z
+                recon_step['acceptr'] = accept_r
+                recon_step['acceptE'] = accept_E
+                recon_step['acceptt'] = accept_t
                 current_size = dataset.shape[0]
                 new_size = current_size + len(eids)
                 dataset.resize((new_size,))
