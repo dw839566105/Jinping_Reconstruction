@@ -232,4 +232,3 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
                 new_size = current_size + len(eids)
                 dataset.resize((new_size,))
                 dataset[current_size:new_size] = recon_step
-            break
