@@ -63,6 +63,10 @@ profile/%.stat: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PM
 	mkdir -p $(dir $@)
 	python3 -m cProfile -o $@ main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@.h5
 
+lineprofile/%.lprof: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
+	mkdir -p $(dir $@)
+	kernprof -o $@ -l main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@.h5
+
 profile/%.svg: profile/%.stat
 	gprof2dot -f pstats $^ | dot -Tsvg -o $@
 
