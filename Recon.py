@@ -149,7 +149,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             recon_step = cp.zeros(len(eids), dtype=dtype)
 
             # 设定随机数
-            cp.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
+            cp.random.seed(eids[0].get() % 1000000) # 取第一个事例编号设定随机数种子
             u_gibbs = cp.log(cp.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)))
             u_V = cp.random.normal(0, 1, (MC_step, len(eids), V_variables))
 
