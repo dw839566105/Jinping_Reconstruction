@@ -32,8 +32,8 @@ class Probe:
         coeff_time: Timing 项系数
         pmt_pos: PMT 直角坐标位置
         '''
-        self.coeff_pe = coeff_pe
-        self.coeff_time = coeff_time
+        self.coeff_pe = cp.array(coeff_pe)
+        self.coeff_time = cp.array(coeff_time)
         self.pmt_pos = pmt_pos
         self.ordert = max(self.coeff_pe.shape[0], self.coeff_time.shape[0])
         self.orderr = max(self.coeff_pe.shape[1], self.coeff_time.shape[1])
