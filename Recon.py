@@ -4,7 +4,7 @@
 '''
 import numpy as np
 from numba import njit
-import tables
+import h5py
 import Detector
 from config import *
 from DetectorConfig import chnums, wavel
@@ -15,24 +15,7 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings("ignore")
 
-class DataType(tables.IsDescription):
-    '''
-    重建数据储存类型
-    '''
-    EventID = tables.Int64Col(pos=0)    # EventNo
-    step = tables.Int32Col(pos=1)       # wave step
-    x = tables.Float16Col(pos=2)        # x position
-    y = tables.Float16Col(pos=3)        # y position
-    z = tables.Float16Col(pos=4)        # z position
-    E = tables.Float16Col(pos=5)        # Energy
-    t = tables.Float16Col(pos=6)        # time
-    NPE = tables.Int32Col(pos=7)        # NPE
-    Likelihood = tables.Float32Col(pos=8)
-    acceptz = tables.Int32Col(pos=9)
-    acceptr = tables.Int32Col(pos=10)
-    acceptE = tables.Int32Col(pos=11)
-    acceptt = tables.Int32Col(pos=12)
-
+# 重建数据储存类型
 dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'),
                   ('z', '<f2'), ('E', '<f2'), ('t', '<f2'), ('NPE', '<i4'),
                   ('Likelihood', '<f4'), ('acceptz', '<i4'), ('acceptr', '<i4'),
@@ -162,97 +145,91 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
     '''
     reconstruction
     '''
-    # create tables
-    h5file = tables.open_file(output, mode="w", title="Detector", filters = tables.Filters(complevel=9))
-    group = "/"
-    ReconTable = h5file.create_table(group, "Recon", DataType, "Recon")
-    for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
-        # 预分配储存数组
-        recon_step = np.zeros(len(eids), dtype=dtype)
+    # 创建输出文件
+    opts = {"compression": "gzip", "shuffle": True}
+    with h5py.File(output, "w") as opt:
+        dataset = opt.create_dataset("data", shape=(0,), maxshape=(None,), dtype=dtype, **opts)
 
-        # 设定随机数
-        np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
-        u_gibbs = np.log(np.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)))
-        u_V = np.random.normal(0, 1, (MC_step, len(eids), V_variables))
+        for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
+            # 预分配储存数组
+            recon_step = np.zeros(len(eids), dtype=dtype)
 
-        # 给出 vertex, LogLikelihhood 的初值并记录
-        vertex0 = Detector.Init(zs, s0s, offsets, pmt_pos, timecalib)
-        Likelihood_vertex0 = LH(vertex0, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            # 设定随机数
+            np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
+            u_gibbs = np.log(np.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)))
+            u_V = np.random.normal(0, 1, (MC_step, len(eids), V_variables))
 
-        # gibbs iteration
-        for step in range(MC_step):
-            # 对 z 采样
-            ich_s, z_s, s0_s, nu_lc_s = resampleZ(samplers, len(eids), zs.shape[2])
-            ch_s = chs[np.arange(chs.shape[0]), ich_s]
-            z_o = zs[np.arange(zs.shape[0]), ch_s]
-            s0_o = s0s[np.arange(s0s.shape[0]), ch_s]
-            nu_lc_o = nu_lcs[np.arange(nu_lcs.shape[0]), ch_s]
-            offset_s = offsets[np.arange(offsets.shape[0]), ch_s]
-            LH_z_sample = LHch(vertex0, ch_s, z_s, s0_s, offset_s, probe, darkrate, timecalib)
-            LH_z_origin = LHch(vertex0, ch_s, z_o, s0_o, offset_s, probe, darkrate, timecalib)
-            accept_z = (nu_lc_o - nu_lc_s + LH_z_sample - LH_z_origin) > u_gibbs[step, :, 0]
-            # update z
-            s0s[np.arange(s0s.shape[0])[accept_z], ch_s[accept_z]] = s0_s[accept_z]
-            nu_lcs[np.arange(nu_lcs.shape[0])[accept_z], ch_s[accept_z]] = nu_lc_s[accept_z]
-            if z_s.shape[1] > z_o.shape[1]:
-                supply = np.zeros((zs.shape[0], zs.shape[1], z_s.shape[1] - z_o.shape[1]), dtype=np.float32)
-                zs = np.concatenate((zs, supply), axis=2)
-            zs[np.arange(zs.shape[0])[accept_z], ch_s[accept_z]] = z_s[accept_z]
-            # update Likelihood
-            Likelihood_vertex0[accept_z] = LH(vertex0[accept_z], chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
+            # 给出 vertex, LogLikelihhood 的初值并记录
+            vertex0 = Detector.Init(zs, s0s, offsets, pmt_pos, timecalib)
+            Likelihood_vertex0 = LH(vertex0, chs, offsets, zs, s0s, probe, darkrate, timecalib)
 
-            # 对 r 采样
-            vertex1 = vertex0.copy()
-            vertex1[:, :3] = vertex1[:, :3] + r_sigma * u_V[step, :, :3]
-            accept_rB = Detector.Boundary(vertex1)
-            Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
-            accept_rL = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
-            accept_r = accept_rL & accept_rB
-            # update r
-            vertex0[accept_r] = vertex1[accept_r]
-            Likelihood_vertex0[accept_r] = Likelihood_vertex1[accept_r]
+            # gibbs iteration
+            for step in range(MC_step):
+                # 对 z 采样
+                ich_s, z_s, s0_s, nu_lc_s = resampleZ(samplers, len(eids), zs.shape[2])
+                ch_s = chs[np.arange(chs.shape[0]), ich_s]
+                z_o = zs[np.arange(zs.shape[0]), ch_s]
+                s0_o = s0s[np.arange(s0s.shape[0]), ch_s]
+                nu_lc_o = nu_lcs[np.arange(nu_lcs.shape[0]), ch_s]
+                offset_s = offsets[np.arange(offsets.shape[0]), ch_s]
+                LH_z_sample = LHch(vertex0, ch_s, z_s, s0_s, offset_s, probe, darkrate, timecalib)
+                LH_z_origin = LHch(vertex0, ch_s, z_o, s0_o, offset_s, probe, darkrate, timecalib)
+                accept_z = (nu_lc_o - nu_lc_s + LH_z_sample - LH_z_origin) > u_gibbs[step, :, 0]
+                # update z
+                s0s[np.arange(s0s.shape[0])[accept_z], ch_s[accept_z]] = s0_s[accept_z]
+                nu_lcs[np.arange(nu_lcs.shape[0])[accept_z], ch_s[accept_z]] = nu_lc_s[accept_z]
+                if z_s.shape[1] > z_o.shape[1]:
+                    supply = np.zeros((zs.shape[0], zs.shape[1], z_s.shape[1] - z_o.shape[1]), dtype=np.float32)
+                    zs = np.concatenate((zs, supply), axis=2)
+                zs[np.arange(zs.shape[0])[accept_z], ch_s[accept_z]] = z_s[accept_z]
+                # update Likelihood
+                Likelihood_vertex0[accept_z] = LH(vertex0[accept_z], chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
 
-            # 对 E 采样
-            vertex1 = vertex0.copy()
-            vertex1[:, 3] = vertex1[:, 3] + E_sigma * u_V[step, :, 3]
-            Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
-            accept_E = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 2]
-            # update E
-            vertex0[accept_E] = vertex1[accept_E]
-            Likelihood_vertex0[accept_E] = Likelihood_vertex1[accept_E]
+                # 对 r 采样
+                vertex1 = vertex0.copy()
+                vertex1[:, :3] = vertex1[:, :3] + r_sigma * u_V[step, :, :3]
+                accept_rB = Detector.Boundary(vertex1)
+                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                accept_rL = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
+                accept_r = accept_rL & accept_rB
+                # update r
+                vertex0[accept_r] = vertex1[accept_r]
+                Likelihood_vertex0[accept_r] = Likelihood_vertex1[accept_r]
 
-            # 对 t 采样
-            vertex1 = vertex0.copy()
-            vertex1[:, 4] = vertex1[:, 4] + T_sigma * u_V[step, :, 4]
-            Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
-            accept_t = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 3]
-            # update t
-            vertex0[accept_t] = vertex1[accept_t]
-            Likelihood_vertex0[accept_t] = Likelihood_vertex1[accept_t]
+                # 对 E 采样
+                vertex1 = vertex0.copy()
+                vertex1[:, 3] = vertex1[:, 3] + E_sigma * u_V[step, :, 3]
+                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                accept_E = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 2]
+                # update E
+                vertex0[accept_E] = vertex1[accept_E]
+                Likelihood_vertex0[accept_E] = Likelihood_vertex1[accept_E]
 
-            # write into tables
-            recon_step['EventID'] = eids
-            recon_step['step'] = step
-            recon_step['x'] = vertex0[:,0]
-            recon_step['y'] = vertex0[:, 1]
-            recon_step['z'] = vertex0[:, 2]
-            recon_step['E'] = vertex0[:, 3]
-            recon_step['t'] = vertex0[:, 4]
-            recon_step['NPE'] = np.sum(s0s, axis=1)
-            recon_step['Likelihood'] = Likelihood_vertex0
-            recon_step['acceptz'] = accept_z
-            recon_step['acceptr'] = accept_r
-            recon_step['acceptE'] = accept_E
-            recon_step['acceptt'] = accept_t
-            ReconTable.append(recon_step)
-    
-    ReconTable.flush()
-    h5file.close()
+                # 对 t 采样
+                vertex1 = vertex0.copy()
+                vertex1[:, 4] = vertex1[:, 4] + T_sigma * u_V[step, :, 4]
+                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                accept_t = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 3]
+                # update t
+                vertex0[accept_t] = vertex1[accept_t]
+                Likelihood_vertex0[accept_t] = Likelihood_vertex1[accept_t]
 
-
-
-
-
-
-
-
+                # write into tables
+                recon_step['EventID'] = eids
+                recon_step['step'] = step
+                recon_step['x'] = vertex0[:,0]
+                recon_step['y'] = vertex0[:, 1]
+                recon_step['z'] = vertex0[:, 2]
+                recon_step['E'] = vertex0[:, 3]
+                recon_step['t'] = vertex0[:, 4]
+                recon_step['NPE'] = np.sum(s0s, axis=1)
+                recon_step['Likelihood'] = Likelihood_vertex0
+                recon_step['acceptz'] = accept_z
+                recon_step['acceptr'] = accept_r
+                recon_step['acceptE'] = accept_E
+                recon_step['acceptt'] = accept_t
+                current_size = dataset.shape[0]
+                new_size = current_size + len(eids)
+                dataset.resize((new_size,))
+                dataset[current_size:new_size] = recon_step
+            break

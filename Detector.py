@@ -6,7 +6,7 @@ Detector: jinping_1ton
 from DetectorConfig import *
 from numba import njit
 import numpy as np
-import tables
+import h5py
 
 def Boundary(vertex):
     '''
@@ -143,9 +143,9 @@ def LoadProbe(PEFile, TimeFile, PmtPos):
     PEFile: polynomial probe pe part
     TimeFile: polynomial probe time part
     '''
-    with tables.open_file(PEFile, 'r') as h:
-        PECoeff = h.root.coeff[:]
-    with tables.open_file(TimeFile,'r') as h:
-        TimeCoeff = h.root.coeff[:]
+    with h5py.File(PEFile, 'r') as h:
+        PECoeff = h['coeff'][:]
+    with h5py.File(TimeFile, 'r') as h:
+        TimeCoeff = h['coeff'][:]
     probe = Probe(PECoeff, TimeCoeff, PmtPos)
     return probe
