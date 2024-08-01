@@ -35,6 +35,8 @@ class Probe:
         self.coeff_pe = coeff_pe
         self.coeff_time = coeff_time
         self.pmt_pos = pmt_pos
+        self.ordert = max(self.coeff_pe.shape[0], self.coeff_time.shape[0])
+        self.orderr = max(self.coeff_pe.shape[1], self.coeff_time.shape[1])
 
     def genBase(self, vertex):
         '''
@@ -46,8 +48,8 @@ class Probe:
         rho = cp.clip(rho, 0, 1)
         # calculate cos theta
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v[:, None, :], self.pmt_pos), axis=-1), cp.dot(v, self.pmt_pos.T)))
-        base_t = legval(cos_theta, cp.max([self.coeff_pe.shape[0], self.coeff_time.shape[0]]))
-        base_r = legval(rho, cp.max([self.coeff_pe.shape[1], self.coeff_time.shape[1]]))
+        base_t = legval(cos_theta, self.ordert)
+        base_r = legval(rho, self.orderr)
         return base_t, base_r
 
     def genR(self, vertex, PEt, sum_mode = True):
@@ -90,8 +92,8 @@ class Probe:
         # calculate cos theta
         p = self.pmt_pos[chs]
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v, p), axis=-1), cp.sum(v * p, axis=1)))
-        base_t = legval(cos_theta, cp.max([self.coeff_pe.shape[0], self.coeff_time.shape[0]]))
-        base_r = legval(rho, cp.max([self.coeff_pe.shape[1], self.coeff_time.shape[1]]))
+        base_t = legval(cos_theta, self.ordert)
+        base_r = legval(rho, self.orderr)
         return base_t, base_r    
 
     def genRch(self, vertex, PEt, chs):
