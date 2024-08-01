@@ -55,6 +55,9 @@ class Probe:
     def genR(self, vertex, PEt, sum_mode = True):
         '''
         调用 probe (全通道)
+        vertex: 顶点的位置能量时刻
+        PEt: 波形分析得到的 PEt, 通过时间刻度修正
+        sum_mode: 广义线性回归需要单位能量的 R, 且不需要 R 的积分，加开关以减少计算
         '''
         base_t, base_r = self.genBase(vertex)
         # 计算空间项
@@ -96,6 +99,8 @@ class Probe:
     def genRch(self, vertex, PEt, chs):
         '''
         调用 probe (单通道)
+        对 z 采样只涉及单通道，输入变量相比 genR 少一个通道编号的维度
+        chs: 各事例被抽取的通道编号
         '''
         base_t, base_r = self.genBasech(vertex, chs)
         # 计算空间项
