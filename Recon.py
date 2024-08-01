@@ -100,7 +100,12 @@ def concat(iterator, Entries):
             nu_lcs = cp.zeros((Entries, chnums), dtype=cp.float32)
             samplers = []
         # 数据类型更正
-        s0 = s0.astype('int32')
+        ch = cp.array(ch)
+        offset = cp.array(offset)
+        z = cp.array(z)
+        s0 = cp.array(s0.astype('int32'))
+        nu_lc = cp.array(nu_lc)
+        # 赋值
         eids[i] = eid
         chs[i, :len(ch)] = ch
         offsets[i, ch] = offset
@@ -132,6 +137,7 @@ def resampleZ(iterators, events, maxs):
     nu_lc = cp.zeros((events), dtype=cp.float32)
     for i, iterator in enumerate(iterators):
         ich[i], z, s0[i], nu_lc[i] = next(iterator)
+        z = cp.array(z)
         # NPE 扩展
         if s0[i] > z_extend.shape[1]:
             supply = cp.zeros((events, s0[i] - z_extend.shape[1]), dtype=cp.float32)
@@ -153,7 +159,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
             recon_step = cp.zeros(len(eids), dtype=dtype)
 
             # 设定随机数
-            cp.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
+            cp.random.seed(eids[0].get() % 1000000) # 取第一个事例编号设定随机数种子
             u_gibbs = cp.log(cp.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)))
             u_V = cp.random.normal(0, 1, (MC_step, len(eids), V_variables))
 
