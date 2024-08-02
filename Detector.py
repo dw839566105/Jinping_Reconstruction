@@ -6,6 +6,7 @@ Detector: jinping_1ton
 from DetectorConfig import *
 import cupy as cp
 import h5py
+from cupyx.scipy.special import lpmv
 
 def Boundary(vertex):
     '''
@@ -13,14 +14,6 @@ def Boundary(vertex):
     探测器相关: Jinping_1ton
     '''
     return cp.sum(cp.square(vertex[:, :3]), axis=1) <= 1
-
-def legval(x, n):
-    res = cp.zeros((n,) + x.shape)
-    res[0] = 1
-    res[1] = x
-    for i in range(2, n):
-        res[i] = ((2 * i - 1) * x * res[i - 1] - (i - 1) * res[i - 2]) / i
-    return res
 
 class Probe:
     '''
@@ -48,8 +41,8 @@ class Probe:
         rho = cp.clip(rho, 0, 1)
         # calculate cos theta
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v[:, None, :], self.pmt_pos), axis=-1), cp.dot(v, self.pmt_pos.T)))
-        base_t = legval(cos_theta, self.ordert)
-        base_r = legval(rho, self.orderr)
+        base_t = lpmv(cp.zeros(self.ordert)[:, None, None], cp.arange(self.ordert)[:, None, None], cos_theta[None, :, :])
+        base_r = lpmv(cp.zeros(self.orderr)[:, None], cp.arange(self.orderr)[:, None], rho[None, :])
         return base_t, base_r
 
     def genR(self, vertex, PEt, sum_mode = True):
@@ -92,8 +85,8 @@ class Probe:
         # calculate cos theta
         p = self.pmt_pos[chs]
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v, p), axis=-1), cp.sum(v * p, axis=1)))
-        base_t = legval(cos_theta, self.ordert)
-        base_r = legval(rho, self.orderr)
+        base_t = lpmv(cp.zeros(self.ordert)[:, None], cp.arange(self.ordert)[:, None], cos_theta[None, :])
+        base_r = lpmv(cp.zeros(self.orderr)[:, None], cp.arange(self.orderr)[:, None], rho[None, :])
         return base_t, base_r    
 
     def genRch(self, vertex, PEt, chs):
