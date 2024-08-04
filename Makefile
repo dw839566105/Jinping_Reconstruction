@@ -8,8 +8,9 @@ MCstep:=10000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
 all: Fig/BiPo.pdf
 
-# 临时计算暗噪声率，后续再仔细考虑。MonitorRun0257_Run0290.root 来自于 online@jinping.g.airelinux.org:~/ZLWork/Calibration/OutputFile/MonitorFile/MonitorRun0257_Run0290.root
-darknoise.txt: MonitorRun0257_Run0290.root
+# 临时计算暗噪声率，后续再仔细考虑。MonitorRun0257_Run0290.root 来自于
+# online@jinping.g.airelinux.org:~/ZLWork/Calibration/OutputFile/MonitorFile/MonitorRun0257_Run0290.root
+darknoise.txt: /JNE/calibration/ZLwork/MonitorRun0257_Run0290.root
 	time python3 genDark.py -i $< -o $@ -d darkrate.pdf
 
 # 事例重建
