@@ -29,8 +29,7 @@ def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     R, Rsum = probe.genR(vertex, PEt)
     index = np.arange(R.shape[2])[None, None, :] < s0s[:, :, None]
     L1 = np.sum(np.log(R + darkrate[chs][:, :, None]) * index, axis=(1,2))
-    index = s0s > 0
-    L2 = - np.sum(Rsum * index, axis=1)
+    L2 = - np.sum(Rsum, axis=1)
     return L1 + L2
 
 def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
