@@ -139,7 +139,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
     # 创建输出文件
     opts = {"compression": "gzip", "shuffle": True}
     with h5py.File(output, "w") as opt:
-        dataset = opt.create_dataset("data", shape=(0,), maxshape=(None,), dtype=dtype, **opts)
+        dataset = opt.create_dataset("Recon", shape=(0,), maxshape=(None,), dtype=dtype, **opts)
 
         for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
             # 预分配储存数组
