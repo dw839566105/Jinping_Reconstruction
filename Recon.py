@@ -29,7 +29,7 @@ def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     R, Rsum = probe.genR(vertex, PEt)
     index = np.arange(R.shape[2])[None, None, :] < s0s[:, :, None]
     L1 = np.sum(np.log(R + darkrate[chs][:, :, None]) * index, axis=(1,2))
-    L2 = - np.sum(Rsum, axis=1)
+    L2 = - np.sum(Rsum, axis=1) # 省略了暗噪声积分的常数项
     return L1 + L2
 
 def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
