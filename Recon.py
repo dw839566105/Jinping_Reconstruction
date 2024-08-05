@@ -93,13 +93,6 @@ def concat(iterator, Entries):
             s0s = cp.zeros((Entries, chnums), dtype=cp.int32)
             nu_lcs = cp.zeros((Entries, chnums), dtype=cp.float32)
             samplers = []
-        # 数据类型更正
-        ch = cp.array(ch)
-        offset = cp.array(offset)
-        z = cp.array(z)
-        s0 = cp.array(s0.astype('int32'))
-        nu_lc = cp.array(nu_lc)
-        # 赋值
         eids[i] = eid
         chs[i, :len(ch)] = ch
         offsets[i, ch] = offset
