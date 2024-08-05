@@ -17,8 +17,7 @@ trigger = file["TriggerFrequencyforDN"].to_numpy()
 darkrate = []
 with PdfPages(args.dark) as pp:
     for i in range(30):
-        chname = "Channel_" + str(i)
-        darknoise = file[chname + "/DarknoiseFrequency"].to_numpy()
+        darknoise = file[f"Channel_{i}/DarknoiseFrequency"].to_numpy()
         data = darknoise[0] * 1E9 / trigger[0] / 150
         data = np.nan_to_num(data, nan=0.0)
         fig, ax = plt.subplots()
