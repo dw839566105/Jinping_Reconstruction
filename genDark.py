@@ -25,7 +25,7 @@ with PdfPages(args.dark) as pp:
         x, popt, pcov = fit.fitdata(data, 10, 100000, 1)
         ax.plot(x, fit.gauss(x, popt[0], popt[1], popt[2], popt[3]), label=f'mu-{popt[0]:.3f} sigma-{popt[1]:.3f}')
         ax.legend()
-        ax.set_title(f'darkrate Distribution {chname} sigma/mu-{(popt[1]/popt[0]):.3f}')
+        ax.set_title(f'darkrate Distribution Channel_{i} sigma/mu-{(popt[1]/popt[0]):.3f}')
         ax.set_xlabel('darkrate / Hz')
         ax.set_ylabel('bins')
         pp.savefig(fig)
