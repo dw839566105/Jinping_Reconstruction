@@ -18,7 +18,7 @@ darkrate = []
 with PdfPages(args.dark) as pp:
     for i in range(30):
         darknoise = file[f"Channel_{i}/DarknoiseFrequency"].to_numpy()
-        data = darknoise[0] * 1E9 / trigger[0] / 150
+        data = darknoise[0] * 1E9 / trigger[0] / 150 # 150ns 为筛选暗噪声时间窗长度
         data = np.nan_to_num(data, nan=0.0)
         fig, ax = plt.subplots()
         ax.hist(data, bins = 100, histtype='step', label="darkrate")
