@@ -6,6 +6,9 @@ PMTCalib:=/JNE/Jinping_1ton_Data/CalibData/GainCalibData/PMTGainCalib_Run0257toR
 PMT:=PMT.txt
 MCstep:=10000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
+
+SRUN:=sudo -u\#35905 srun -c 1
+
 all: Fig/BiPo.pdf
 
 # 临时计算暗噪声率，后续再仔细考虑。MonitorRun0257_Run0290.root 来自于
@@ -16,7 +19,7 @@ darknoise.txt: /JNE/calibration/ZLwork/MonitorRun0257_Run0290.root
 # 事例重建
 tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
 	mkdir -p $(dir $@)
-	time python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@
+	$(SRUN) python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
