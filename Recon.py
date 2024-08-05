@@ -82,13 +82,6 @@ def concat(iterator, Entries):
     s0s.shape = (N, chnums)
     nu_lcs.shape = (N, chnums)
     '''
-    eids = cp.zeros(Entries, dtype=cp.int64)
-    chs = cp.zeros((Entries, chnums), dtype=cp.int32)
-    offsets = cp.zeros((Entries, chnums), dtype=cp.float32)
-    zs = cp.zeros((Entries, chnums, 10), dtype=cp.float32)
-    s0s = cp.zeros((Entries, chnums), dtype=cp.int32)
-    nu_lcs = cp.zeros((Entries, chnums), dtype=cp.float32)
-    samplers = []
     for iter, (eid, ch, offset, z, s0, nu_lc, _, sampler) in enumerate(iterator):
         i = iter % Entries
         # 取数后重置
