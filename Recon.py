@@ -27,10 +27,16 @@ def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
     '''
     PEt = zs + offsets[:, :, None] + timecalib[None, :, None]
     R, Rsum = probe.genR(vertex, PEt)
+<<<<<<< HEAD
     index = cp.arange(R.shape[2])[None, None, :] < s0s[:, :, None]
     L1 = cp.sum(cp.log(R + darkrate[chs][:, :, None]) * index, axis=(1,2))
     index = s0s > 0
     L2 = - cp.sum(Rsum * index, axis=1)
+=======
+    index = np.arange(R.shape[2])[None, None, :] < s0s[:, :, None]
+    L1 = np.sum(np.log(R + darkrate[chs][:, :, None]) * index, axis=(1,2))
+    L2 = - np.sum(Rsum, axis=1)
+>>>>>>> a58893e (修正 L2 对未触发通道的处理)
     return L1 + L2
 
 def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
