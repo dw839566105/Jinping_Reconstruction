@@ -15,6 +15,7 @@ def plot_fit(data, ax, xtitle, ytitle, start, end, unit):
 
 def plot_fit_fig(pp, data, xtitle, ytitle, start, end, unit):
     fig, ax = plt.subplots()
+    data = data[(data > start) & (data < end)]
     plot_fit(data, ax, xtitle, ytitle, start, end, unit)
     pp.savefig(fig)
     plt.close(fig)

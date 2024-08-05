@@ -9,3 +9,7 @@ shell = 0.645
 # quantile 参数, 来自窦威文章 Fig2 的拟合结果: https://doi.org/10.1016/j.nima.2023.168692
 tau = 0.1
 ts = 3
+
+timel_dark = 150 # ns
+wavel = 1029
+tbin = 2 # ns
