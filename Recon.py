@@ -94,8 +94,6 @@ def concat(iterator, Entries):
             s0s = np.zeros((Entries, chnums), dtype=np.int32)
             nu_lcs = np.zeros((Entries, chnums), dtype=np.float32)
             samplers = []
-        # 数据类型更正
-        s0 = s0.astype('int32')
         eids[i] = eid
         chs[i, :len(ch)] = ch
         offsets[i, ch] = offset
