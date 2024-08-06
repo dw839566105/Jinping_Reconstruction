@@ -142,7 +142,7 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
 
         for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
             # 预分配储存数组
-            recon_step = cp.zeros(len(eids), dtype=dtype)
+            recon_step = np.zeros(len(eids), dtype=dtype)
 
             # 设定随机数
             np.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
