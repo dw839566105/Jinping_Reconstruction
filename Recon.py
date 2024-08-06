@@ -71,44 +71,52 @@ def Regression(vertex, offsets, zs, s0s, probe, darkrate, timecalib):
     E = np.apply_along_axis(glm, 1, data)
     return E
 
-def concat(iterator, Entries):
+def concat(iterator, entries, zlength_max, num):
     '''
-    将多个事例数组拼接
-    eids.shape = (N, 1)
-    chs.shape = (N, chnums)
-    offsets.shape = (N, chnums)
-    zs.shape = (N, chnums, y)
-    s0s.shape = (N, chnums)
-    nu_lcs.shape = (N, chnums)
+    将多个事例数组拼接, 并按 z 的长度排序分块
+    entries:
+        事例总数
+    zlength_max:
+        整个文件内 z 的最大长度
+    num: 
+        分块数量
+    eids.shape = (entries,)
+    chs.shape = (entries, chnums)
+    offsets.shape = (entries, chnums)
+    zs.shape = (entries, chnums, zlength)
+    s0s.shape = (entries, chnums)
+    nu_lcs.shape = (entries, chnums)
     '''
-    for iter, (eid, ch, offset, z, s0, nu_lc, _, sampler) in enumerate(iterator):
-        i = iter % Entries
-        # 取数后重置
-        if i == 0:
-            eids = np.zeros(Entries, dtype=np.int64)
-            chs = np.zeros((Entries, chnums), dtype=np.int32)
-            offsets = np.zeros((Entries, chnums), dtype=np.float32)
-            zs = np.zeros((Entries, chnums, 10), dtype=np.float32)
-            s0s = np.zeros((Entries, chnums), dtype=np.int32)
-            nu_lcs = np.zeros((Entries, chnums), dtype=np.float32)
-            samplers = []
+    eids = np.zeros(entries, dtype=np.int64)
+    chs = np.zeros((entries, chnums), dtype=np.int32)
+    offsets = np.zeros((entries, chnums), dtype=np.float32)
+    zs = np.zeros((entries, chnums, zlength_max), dtype=np.float32)
+    s0s = np.zeros((entries, chnums), dtype=np.int32)
+    nu_lcs = np.zeros((entries, chnums), dtype=np.float32)
+    samplers = np.empty(entries, dtype=object)
+    zlength = np.zeros(entries, dtype=np.int32)
+    for i, (eid, ch, offset, z, s0, nu_lc, _, sampler) in enumerate(iterator):
         eids[i] = eid
         chs[i, :len(ch)] = ch
         offsets[i, ch] = offset
         s0s[i, ch] = s0
         nu_lcs[i, ch] = nu_lc
-        # NPE 扩展
-        if z.shape[1] > zs.shape[2]:
-            supply = np.zeros((Entries, zs.shape[1], z.shape[1] - zs.shape[2]), dtype=np.float32)
-            zs = np.concatenate((zs, supply), axis=2)
         zs[i, ch, :z.shape[1]] = z
-        samplers.append(sampler)
-        # 取数
-        if i == Entries - 1:
-            yield eids, chs, offsets, zs, s0s, nu_lcs, samplers
-    # 不足 Entries 个事例取完
-    yield eids[:i], chs[:i], offsets[:i], zs[:i], s0s[:i], nu_lcs[:i], samplers[:i]
-                    
+        samplers[i] = sampler
+        zlength[i] = np.max(s0)
+    l_sort = np.sort(zlength)
+    index_sort = np.argsort(zlength)
+    split_point = np.zeros(num, dtype=np.int32)
+    l_total = np.sum(zlength)
+    l_cumsum = np.cumsum(l_sort)
+    for i in range(1, num):
+        split_point[i] = np.abs(l_cumsum - l_total * i / num).argmin()
+        block = index_sort[split_point[i-1]: split_point[i]]
+        zlength_block = l_sort[index_sort[split_point[i]]]
+        yield eids[block], chs[block], offsets[block], zs[block, :, :zlength_block], s0s[block], nu_lcs[block], samplers[block]
+    block = index_sort[split_point[i]:]
+    yield eids[block], chs[block], offsets[block], zs[block], s0s[block], nu_lcs[block], samplers[block]
+
 def resampleZ(iterators, events, maxs):
     '''
     返回 z 的重采样结果
@@ -131,16 +139,19 @@ def resampleZ(iterators, events, maxs):
         z_extend[i, :s0[i]] = z[:s0[i]]
     return ich, z_extend, s0, nu_lc
 
-def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, timecalib, MC_step):
+def Reconstruction(fsmp, sparsify, num, output, probe, pmt_pos, darkrate, timecalib, MC_step):
     '''
     reconstruction
     '''
     # 创建输出文件
     opts = {"compression": "gzip", "shuffle": True}
     with h5py.File(output, "w") as opt:
-        dataset = opt.create_dataset("Recon", shape=(0,), maxshape=(None,), dtype=dtype, **opts)
-
-        for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(FSMPreader(sparsify, fsmp).rand_iter(MC_step), Entries)):
+        # 读入波形分析结果
+        waveform = FSMPreader(sparsify, fsmp)
+        entries, zlength_max = waveform.get_size()
+        dataset = opt.create_dataset("Recon", shape=(entries * MC_step,), dtype=dtype, **opts)
+        i = 0
+        for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(waveform.rand_iter(MC_step), entries, zlength_max, num)):
             # 预分配储存数组
             recon_step = np.zeros(len(eids), dtype=dtype)
 
@@ -218,7 +229,5 @@ def Reconstruction(fsmp, sparsify, Entries, output, probe, pmt_pos, darkrate, ti
                 recon_step['acceptr'] = accept_r
                 recon_step['acceptE'] = accept_E
                 recon_step['acceptt'] = accept_t
-                current_size = dataset.shape[0]
-                new_size = current_size + len(eids)
-                dataset.resize((new_size,))
-                dataset[current_size:new_size] = recon_step
+                dataset[i: i + len(recon_step)] = recon_step
+                i += len(recon_step)

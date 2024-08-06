@@ -39,7 +39,7 @@ parser.add_argument('--timecalib', dest='timecalib', type=str,
                     help='time calib file')
 
 parser.add_argument('-n', '--num', dest='num', type=int, default=10,
-                    help='the batch size for multi-events reconstruction')
+                    help='the number of blocks for multi-events reconstruction')
 
 parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10000,
                     help='mcmc step per PEt')
