@@ -120,10 +120,10 @@ def concat(iterator, entries, zlength_max, num):
 def resampleZ(iterators, events, maxs):
     '''
     返回 z 的重采样结果
-    ich.shape = (N, 1)
-    z_extend.shape = (N, 1, y)
-    s0.shape = (N, 1)
-    nu_lc.shape = (N, 1)
+    ich.shape = (N,)
+    z_extend.shape = (N, y)
+    s0.shape = (N,)
+    nu_lc.shape = (N,)
     '''
     ich = np.zeros((events), dtype=np.int32)
     z_extend = np.zeros((events, maxs), dtype=np.float32)
@@ -132,7 +132,7 @@ def resampleZ(iterators, events, maxs):
     for i, iterator in enumerate(iterators):
         ich[i], z, s0[i], nu_lc[i] = next(iterator)
         z = np.array(z)
-        # NPE 扩展
+        # NPE 扩展，仍有可能出现 NPE 增大情况
         if s0[i] > z_extend.shape[1]:
             supply = np.zeros((events, s0[i] - z_extend.shape[1]), dtype=np.float32)
             z_extend = np.concatenate((z_extend, supply), axis=1)
