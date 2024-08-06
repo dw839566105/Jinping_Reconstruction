@@ -6,6 +6,7 @@ Detector: jinping_1ton
 from DetectorConfig import *
 import cupy as cp
 import h5py
+import numpy as np
 from cupyx.scipy.special import lpmv
 
 def Boundary(vertex):
@@ -13,7 +14,7 @@ def Boundary(vertex):
     判断晃动是否超出边界
     探测器相关: Jinping_1ton
     '''
-    return cp.sum(cp.square(vertex[:, :3]), axis=1) <= 1
+    return np.sum(np.square(vertex[:, :3]), axis=1) <= 1
 
 class Probe:
     '''
@@ -21,13 +22,21 @@ class Probe:
     '''
     def __init__(self, coeff_pe, coeff_time, pmt_pos):
         '''
-        coeff_pe: PE 项系数
-        coeff_time: Timing 项系数
-        pmt_pos: PMT 直角坐标位置
+        初始化 probe
+        coeff_pe: cp.ndarray
+            PE 项系数
+        coeff_time: cp.ndarray
+            Timing 项系数
+        pmt_pos: cp.ndarray
+            PMT 直角坐标位置
+        ordert:
+            时间项阶数
+        orderr:
+            空间项阶数
         '''
-        self.coeff_pe = cp.array(coeff_pe)
-        self.coeff_time = cp.array(coeff_time)
-        self.pmt_pos = pmt_pos
+        self.coeff_pe = cp.asarray(coeff_pe)
+        self.coeff_time = cp.asarray(coeff_time)
+        self.pmt_pos = cp.asarray(pmt_pos)
         self.ordert = max(self.coeff_pe.shape[0], self.coeff_time.shape[0])
         self.orderr = max(self.coeff_pe.shape[1], self.coeff_time.shape[1])
 
@@ -48,9 +57,12 @@ class Probe:
     def genR(self, vertex, PEt, sum_mode = True):
         '''
         调用 probe (全通道)
-        vertex: 顶点的位置能量时刻
-        PEt: 波形分析得到的 PEt, 通过时间刻度修正
-        sum_mode: 广义线性回归需要单位能量的 R, 且不需要 R 的积分，加开关以减少计算
+        vertex: cp.ndarray
+            顶点的位置能量时刻
+        PEt: cp.ndarray
+            波形分析得到的 PEt, 通过时间刻度修正
+        sum_mode: 
+            广义线性回归需要单位能量的 R, 且不需要 R 的积分，加开关以减少计算
         '''
         base_t, base_r = self.genBase(vertex)
         # 计算空间项
@@ -114,20 +126,20 @@ class Probe:
         return R, Rsum * NPE * vertex[:, 3] / E0
 
 def quantile_regression(arr):
-    return cp.quantile(arr[arr != 0], tau)
+    return np.quantile(arr[arr != 0], tau)
 
 def Init(zs, s0s, offsets, pmt_pos, timecalib):
     '''
     计算初值
     '''
-    vertex = cp.zeros((s0s.shape[0], 5))
-    s0sum = cp.sum(s0s, axis=1)
+    vertex = np.zeros((s0s.shape[0], 5))
+    s0sum = np.sum(s0s, axis=1)
     vertex[:, 3] = s0sum/ npe
     vertex[:, :3] = 1.5 * s0s @ pmt_pos / s0sum[:, None]
     PEt = zs.copy()
-    index = cp.arange(zs.shape[2])[None, None, :] < s0s[:, :, None]
-    PEt = cp.where(index, zs + offsets[:, :, None] + timecalib[None, :, None], 0)
-    vertex[:, -1] = cp.apply_along_axis(quantile_regression, axis=1, arr=PEt.reshape(PEt.shape[0], -1))
+    index = np.arange(zs.shape[2])[None, None, :] < s0s[:, :, None]
+    PEt = np.where(index, zs + offsets[:, :, None] + timecalib[None, :, None], 0)
+    vertex[:, -1] = np.apply_along_axis(quantile_regression, axis=1, arr=PEt.reshape(PEt.shape[0], -1))
     return vertex
 
 def LoadProbe(PEFile, TimeFile, PmtPos):

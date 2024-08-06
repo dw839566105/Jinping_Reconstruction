@@ -7,6 +7,7 @@ from argparse import RawTextHelpFormatter
 import Recon
 import Detector
 import cupy as cp
+import numpy as np
 import pandas as pd
     
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
@@ -46,13 +47,13 @@ parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10000,
 args = parser.parse_args()
 
 # 读入文件
-pmt_pos = cp.loadtxt(args.PMT)
+pmt_pos = np.loadtxt(args.PMT)
 print("Finished Reading PMT")
 probe = Detector.LoadProbe(args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
 timefile = pd.read_csv(args.timecalib, sep='\s+', header=None, comment="#")
 darkrate = cp.loadtxt(args.dark) / 1E9 # Hz 转换成 个 / ns
-timecalib = cp.array(- timefile[6].values) # 时间刻度相反数来修正
+timecalib = np.array(- timefile[6].values) # 时间刻度相反数来修正
 
 # 重建
 Recon.Reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, darkrate, timecalib, args.MCstep)
