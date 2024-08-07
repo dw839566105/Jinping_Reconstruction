@@ -6,7 +6,7 @@ PMTCalib:=/JNE/Jinping_1ton_Data/CalibData/GainCalibData/PMTGainCalib_Run0257toR
 PMT:=PMT.txt
 MCstep:=10000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
-BlockNum:=2
+BlockNum:=10
 SRUN:=sudo -u\#35905 srun -c 1
 
 all: Fig/BiPo.pdf
@@ -74,6 +74,10 @@ lineprofile/%.lprof: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp)
 	kernprof -o $@ -l main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@.h5
 	sed -i '$(line)d' $(word 8, $^)
 	sed -i '$(line)d' $(word 8, $^)
+
+rocprofile/%: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
+	mkdir -p $@
+	rocprof -d rocprofile/$* --hip-trace --hsa-trace --sys-trace --roctx-trace --stats main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@.h5
 
 profile/%.svg: profile/%.stat
 	gprof2dot -f pstats $^ | dot -Tsvg -o $@
