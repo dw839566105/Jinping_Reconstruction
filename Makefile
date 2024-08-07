@@ -7,7 +7,7 @@ PMT:=PMT.txt
 MCstep:=10000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
 BlockNum:=3
-SRUN:=sudo -u\#35905 srun -c 1
+SRUN:=sudo -u\#35905 srun -g 1 -c 2
 
 all: Fig/BiPo.pdf
 
