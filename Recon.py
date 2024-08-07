@@ -112,7 +112,7 @@ def concat(iterator, entries, zlength_max, num):
     for i in range(1, num):
         split_point[i] = np.abs(l_cumsum - l_total * i / num).argmin()
         block = index_sort[split_point[i-1]: split_point[i]]
-        zlength_block = l_sort[index_sort[split_point[i]]]
+        zlength_block = l_sort[split_point[i]]
         yield eids[block], chs[block], offsets[block], zs[block, :, :zlength_block], s0s[block], nu_lcs[block], samplers[block]
     block = index_sort[split_point[i]:]
     yield eids[block], chs[block], offsets[block], zs[block], s0s[block], nu_lcs[block], samplers[block]
