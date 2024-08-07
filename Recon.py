@@ -8,7 +8,6 @@ import h5py
 import Detector
 from config import *
 from DetectorConfig import chnums, wavel
-from tqdm import tqdm
 from fsmp_reader import FSMPreader
 import statsmodels.api as sm
 # sm.families.Poisson 只允许 log 的 link，其他 link 都会被视为 unsafe 弹出 warning
@@ -151,7 +150,7 @@ def Reconstruction(fsmp, sparsify, num, output, probe, pmt_pos, darkrate, timeca
         entries, zlength_max = waveform.get_size()
         dataset = opt.create_dataset("Recon", shape=(entries, MC_step), dtype=dtype, **opts)
         i = 0
-        for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(waveform.rand_iter(MC_step), entries, zlength_max, num)):
+        for eids, chs, offsets, zs, s0s, nu_lcs, samplers in concat(waveform.rand_iter(MC_step), entries, zlength_max, num):
             # 预分配储存数组
             recon_step = np.zeros(len(eids), dtype=dtype)
 
