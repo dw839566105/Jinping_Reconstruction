@@ -128,7 +128,7 @@ class Probe:
 def quantile_regression(arr):
     return np.quantile(arr[arr != 0], tau)
 
-def Init(zs, s0s, offsets, pmt_pos, timecalib):
+def Init(PEt, s0s, pmt_pos):
     '''
     计算初值
     '''
@@ -136,9 +136,8 @@ def Init(zs, s0s, offsets, pmt_pos, timecalib):
     s0sum = np.sum(s0s, axis=1)
     vertex[:, 3] = s0sum/ npe
     vertex[:, :3] = 1.5 * s0s @ pmt_pos / s0sum[:, None]
-    PEt = zs.copy()
-    index = np.arange(zs.shape[2])[None, None, :] < s0s[:, :, None]
-    PEt = np.where(index, zs + offsets[:, :, None] + timecalib[None, :, None], 0)
+    index = np.arange(PEt.shape[2])[None, None, :] < s0s[:, :, None]
+    PEt = np.where(index, PEt, 0)
     vertex[:, -1] = np.apply_along_axis(quantile_regression, axis=1, arr=PEt.reshape(PEt.shape[0], -1))
     return vertex
 

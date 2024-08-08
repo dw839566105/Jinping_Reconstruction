@@ -21,22 +21,22 @@ dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'
                   ('Likelihood', '<f4'), ('acceptz', '<i4'), ('acceptr', '<i4'),
                   ('acceptE', '<i4'), ('acceptt', '<i4')])
 
-def LH(vertex, chs, offsets, zs, s0s, probe, darkrate, timecalib):
+def LH(vertex, chs, PEt, s0s, probe, darkrate):
     '''
     计算 Likelihood (全通道)
+    PEt: cp.ndarray
+        提前转化成 cupy.ndarray, 因为是 tvE 三者采样共用
     '''
-    PEt = zs + offsets[:, :, None] + timecalib[None, :, None]
-    R, Rsum = probe.genR(cp.asarray(vertex), cp.asarray(PEt))
+    R, Rsum = probe.genR(cp.asarray(vertex), PEt)
     index = cp.arange(R.shape[2])[None, None, :] < cp.asarray(s0s[:, :, None])
     L1 = cp.sum(cp.log(R + darkrate[chs][:, :, None]) * index, axis=(1,2))
     L2 = - cp.sum(Rsum, axis=1) # 省略了暗噪声积分的常数项
     return cp.asnumpy(L1 + L2)
 
-def LHch(vertex, chs, zs, s0s, offsets, probe, darkrate, timecalib):
+def LHch(vertex, chs, PEt, s0s, probe, darkrate):
     '''
     计算 Likelihood (单通道)
     '''
-    PEt = zs + offsets[:, None] + timecalib[chs][:, None]
     R, Rsum = probe.genRch(cp.asarray(vertex), cp.asarray(PEt), chs)
     index = cp.arange(R.shape[1])[None, :] < cp.asarray(s0s[:, None])
     L1 = cp.sum(cp.log(R + darkrate[chs][:, None]) * index, axis=1)
@@ -161,36 +161,40 @@ def Reconstruction(fsmp, sparsify, num, output, probe, pmt_pos, darkrate, timeca
             u_V = np.random.normal(0, 1, (MC_step, len(eids), V_variables))
 
             # 给出 vertex, LogLikelihhood 的初值并记录
-            vertex0 = Detector.Init(zs, s0s, offsets, pmt_pos, timecalib)
-            Likelihood_vertex0 = LH(vertex0, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+            PEt = zs + offsets[:, :, None] + timecalib[None, :, None]
+            vertex0 = Detector.Init(PEt, s0s, pmt_pos)
+            Likelihood_vertex0 = LH(vertex0, chs, cp.asarray(PEt), s0s, probe, darkrate)
 
             # gibbs iteration
             for step in range(MC_step):
                 # 对 z 采样
-                ich_s, z_s, s0_s, nu_lc_s = resampleZ(samplers, len(eids), zs.shape[2])
+                ich_s, z_s, s0_s, nu_lc_s = resampleZ(samplers, len(eids), PEt.shape[2])
                 ch_s = chs[np.arange(chs.shape[0]), ich_s]
-                z_o = zs[np.arange(zs.shape[0]), ch_s]
+                PEt_o = PEt[np.arange(zs.shape[0]), ch_s]
                 s0_o = s0s[np.arange(s0s.shape[0]), ch_s]
                 nu_lc_o = nu_lcs[np.arange(nu_lcs.shape[0]), ch_s]
                 offset_s = offsets[np.arange(offsets.shape[0]), ch_s]
-                LH_z_sample = LHch(vertex0, ch_s, z_s, s0_s, offset_s, probe, darkrate, timecalib)
-                LH_z_origin = LHch(vertex0, ch_s, z_o, s0_o, offset_s, probe, darkrate, timecalib)
+                PEt_s = z_s + offset_s[:, None] + timecalib[ch_s][:, None]
+                LH_z_sample = LHch(vertex0, ch_s, PEt_s, s0_s, probe, darkrate)
+                LH_z_origin = LHch(vertex0, ch_s, PEt_o, s0_o, probe, darkrate)
                 accept_z = (nu_lc_o - nu_lc_s + LH_z_sample - LH_z_origin) > u_gibbs[step, :, 0]
                 # update z
                 s0s[np.arange(s0s.shape[0])[accept_z], ch_s[accept_z]] = s0_s[accept_z]
                 nu_lcs[np.arange(nu_lcs.shape[0])[accept_z], ch_s[accept_z]] = nu_lc_s[accept_z]
-                if z_s.shape[1] > z_o.shape[1]:
-                    supply = np.zeros((zs.shape[0], zs.shape[1], z_s.shape[1] - z_o.shape[1]), dtype=np.float32)
-                    zs = np.concatenate((zs, supply), axis=2)
-                zs[np.arange(zs.shape[0])[accept_z], ch_s[accept_z]] = z_s[accept_z]
+                if PEt_s.shape[1] > PEt_o.shape[1]:
+                    supply = np.zeros((PEt.shape[0], PEt.shape[1], PEt_s.shape[1] - PEt_o.shape[1]), dtype=np.float32)
+                    PEt = np.concatenate((PEt, supply), axis=2)
+                PEt[np.arange(PEt.shape[0])[accept_z], ch_s[accept_z]] = PEt_s[accept_z]
+                # 将 PEt 转化为 cupy.ndarray
+                PEt_cp = cp.asarray(PEt)
                 # update Likelihood
-                Likelihood_vertex0[accept_z] = LH(vertex0[accept_z], chs[accept_z], offsets[accept_z], zs[accept_z], s0s[accept_z], probe, darkrate, timecalib)
+                Likelihood_vertex0[accept_z] = LH(vertex0[accept_z], chs[accept_z], PEt_cp[cp.asarray(accept_z)], s0s[accept_z], probe, darkrate)
 
                 # 对 r 采样
                 vertex1 = vertex0.copy()
                 vertex1[:, :3] = vertex1[:, :3] + r_sigma * u_V[step, :, :3]
                 accept_rB = Detector.Boundary(vertex1)
-                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                Likelihood_vertex1 = LH(vertex1, chs, PEt_cp, s0s, probe, darkrate)
                 accept_rL = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 1]
                 accept_r = accept_rL & accept_rB
                 # update r
@@ -200,7 +204,7 @@ def Reconstruction(fsmp, sparsify, num, output, probe, pmt_pos, darkrate, timeca
                 # 对 E 采样
                 vertex1 = vertex0.copy()
                 vertex1[:, 3] = vertex1[:, 3] + E_sigma * u_V[step, :, 3]
-                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                Likelihood_vertex1 = LH(vertex1, chs, PEt_cp, s0s, probe, darkrate)
                 accept_E = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 2]
                 # update E
                 vertex0[accept_E] = vertex1[accept_E]
@@ -209,7 +213,7 @@ def Reconstruction(fsmp, sparsify, num, output, probe, pmt_pos, darkrate, timeca
                 # 对 t 采样
                 vertex1 = vertex0.copy()
                 vertex1[:, 4] = vertex1[:, 4] + T_sigma * u_V[step, :, 4]
-                Likelihood_vertex1 = LH(vertex1, chs, offsets, zs, s0s, probe, darkrate, timecalib)
+                Likelihood_vertex1 = LH(vertex1, chs, PEt_cp, s0s, probe, darkrate)
                 accept_t = Likelihood_vertex1 - Likelihood_vertex0 > u_gibbs[step, :, 3]
                 # update t
                 vertex0[accept_t] = vertex1[accept_t]
