@@ -72,6 +72,7 @@ lineprofile/%.lprof: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp)
 	mkdir -p $(dir $@)
 	sed -i '$(line) i\    from line_profiler import LineProfiler\n    @profile' $(word 8, $^)
 	kernprof -o $@ -l main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@.h5
+	python -m line_profiler $@ > $@.log
 	sed -i '$(line)d' $(word 8, $^)
 	sed -i '$(line)d' $(word 8, $^)
 
