@@ -16,6 +16,22 @@ def Boundary(vertex):
     '''
     return cp.linalg.norm(vertex[:, :3], axis=1) <= 1
 
+
+int_rsum = cp.ElementwiseKernel(
+    'T down',
+    'T Rsum',
+    f"""
+        if (down > 0)
+            Rsum = ({tau}-1)*(exp(-{tau}*(down+{wavel})/{ts}) - exp(-{tau}*down/{ts}));
+        else if (down < -{wavel})
+            Rsum = {tau}*(exp((1-{tau})*(down+{wavel})/{ts}) - exp((1-{tau})*down/{ts}));
+        else
+            Rsum = 1 + ({tau}-1)*exp(-{tau}*(down+{wavel})/{ts}) - {tau}*exp((1-{tau})*down/{ts});
+    """,
+    'int_rsum'
+)
+
+
 class Probe:
     '''
     多项式拟合 probe
@@ -77,13 +93,7 @@ class Probe:
         R *= vertex[:, 3][:, None, None]
         # 分类计算 R 的积分
         down = - Ti.T - vertex[:, -1][:, None]
-        Rsum = cp.zeros_like(down)
-        index1 = down > 0
-        Rsum[index1] = (tau - 1) * (cp.exp(- tau * (down[index1] + wavel) / ts) - cp.exp(- tau * down[index1] / ts))
-        index2 = down < - wavel
-        Rsum[index2] = tau * (cp.exp((1- tau) * (down[index2] + wavel) / ts) - cp.exp((1- tau) * down[index2] / ts))
-        index3 = ~(index1 | index2)
-        Rsum[index3] = 1 + (tau - 1) * cp.exp(- tau * (down[index3] + wavel) / ts) - tau * cp.exp((1- tau) * down[index3] / ts)
+        Rsum = int_rsum(down)
         return R, Rsum * NPE.T * vertex[:, 3][:, None] / E0
 
     def genBasech(self, vertex, chs):
@@ -116,13 +126,7 @@ class Probe:
         R = tau * (1 - tau) / ts * cp.exp(- cp.where(t < 0, t * (tau - 1), t * tau) / ts) * NPE.T[:, None] * vertex[:, 3][:, None] / E0
         # 分类计算 R 的积分
         down = - Ti - vertex[:, -1]
-        Rsum = cp.zeros_like(down)
-        index1 = down > 0
-        Rsum[index1] = (tau - 1) * (cp.exp(- tau * (down[index1] + wavel) / ts) - cp.exp(- tau * down[index1] / ts))
-        index2 = down < - wavel
-        Rsum[index2] = tau * (cp.exp((1- tau) * (down[index2] + wavel) / ts) - cp.exp((1- tau) * down[index2] / ts))
-        index3 = ~(index1 | index2)
-        Rsum[index3] = 1 + (tau - 1) * cp.exp(- tau * (down[index3] + wavel) / ts) - tau * cp.exp((1- tau) * down[index3] / ts)
+        Rsum = int_rsum(down)
         return R, Rsum * NPE * vertex[:, 3] / E0
 
 def quantile_regression(arr):
@@ -132,7 +136,7 @@ def Init(PEt, s0s, pmt_pos):
     '''
     计算初值
     '''
-    vertex = cp.zeros((s0s.shape[0], 5))
+    vertex = cp.zeros((s0s.shape[0], 5), dtype=cp.float16)
     s0sum = cp.sum(s0s, axis=1)
     vertex[:, 3] = s0sum/ npe
     vertex[:, :3] = 1.5 * s0s @ pmt_pos / s0sum[:, None]
