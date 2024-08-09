@@ -19,7 +19,7 @@ darknoise.txt: /JNE/calibration/ZLwork/MonitorRun0257_Run0290.root
 # 事例重建
 tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
 	mkdir -p $(dir $@)
-	$(SRUN) python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@
+	$(SRUN) ./main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@
 
 tvE_Burn/%.h5: tvE/%.h5
 	mkdir -p $(dir $@)
