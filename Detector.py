@@ -14,7 +14,7 @@ def Boundary(vertex):
     判断晃动是否超出边界
     探测器相关: Jinping_1ton
     '''
-    return np.sum(np.square(vertex[:, :3]), axis=1) <= 1
+    return cp.linalg.norm(vertex[:, :3], axis=1) <= 1
 
 class Probe:
     '''
