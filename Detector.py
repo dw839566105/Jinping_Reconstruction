@@ -36,7 +36,7 @@ class Probe:
         '''
         self.coeff_pe = cp.asarray(coeff_pe)
         self.coeff_time = cp.asarray(coeff_time)
-        self.pmt_pos = cp.asarray(pmt_pos)
+        self.pmt_pos = pmt_pos
         self.ordert = max(self.coeff_pe.shape[0], self.coeff_time.shape[0])
         self.orderr = max(self.coeff_pe.shape[1], self.coeff_time.shape[1])
 
@@ -126,19 +126,19 @@ class Probe:
         return R, Rsum * NPE * vertex[:, 3] / E0
 
 def quantile_regression(arr):
-    return np.quantile(arr[arr != 0], tau)
+    return cp.quantile(arr[arr != 0], tau)
 
 def Init(PEt, s0s, pmt_pos):
     '''
     计算初值
     '''
-    vertex = np.zeros((s0s.shape[0], 5))
-    s0sum = np.sum(s0s, axis=1)
+    vertex = cp.zeros((s0s.shape[0], 5))
+    s0sum = cp.sum(s0s, axis=1)
     vertex[:, 3] = s0sum/ npe
     vertex[:, :3] = 1.5 * s0s @ pmt_pos / s0sum[:, None]
-    index = np.arange(PEt.shape[2])[None, None, :] < s0s[:, :, None]
-    PEt = np.where(index, PEt, 0)
-    vertex[:, -1] = np.apply_along_axis(quantile_regression, axis=1, arr=PEt.reshape(PEt.shape[0], -1))
+    index = cp.arange(PEt.shape[2])[None, None, :] < s0s[:, :, None]
+    PEt = cp.where(index, PEt, 0)
+    vertex[:, -1] = cp.apply_along_axis(quantile_regression, axis=1, arr=PEt.reshape(PEt.shape[0], -1))
     return vertex
 
 def LoadProbe(PEFile, TimeFile, PmtPos):

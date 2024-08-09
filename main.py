@@ -48,7 +48,7 @@ parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10000,
 args = parser.parse_args()
 
 # 读入文件
-pmt_pos = np.loadtxt(args.PMT)
+pmt_pos = cp.loadtxt(args.PMT)
 print("Finished Reading PMT")
 probe = Detector.LoadProbe(args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")

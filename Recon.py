@@ -77,7 +77,7 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
     # 读入波形分析结果
     waveform = Reader(sparsify, fsmp, num, MC_step)
     # 预分配储存数组
-    recon_step = cp.zeros((len(waveform), MC_step), dtype=dtype)
+    recon_step = np.zeros((len(waveform), MC_step), dtype=dtype)
     i = 0
     for eids, zs, meta_zs, samplers in waveform:
         zs = cp.asarray(zs)
@@ -91,7 +91,7 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
 
         # 给出 vertex, LogLikelihhood 的初值并记录
         PEt = zs + timecalib[None, :, None]
-        vertex0 = cp.asarray(Detector.Init(PEt, s0s, pmt_pos))
+        vertex0 = Detector.Init(PEt, s0s, pmt_pos)
         Likelihood_vertex0 = LH(vertex0, PEt, s0s, probe, darkrate)
 
         # gibbs iteration
