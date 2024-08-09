@@ -66,8 +66,8 @@ class Probe:
         rho = cp.clip(rho, 0, 1)
         # calculate cos theta
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v[:, None, :], self.pmt_pos), axis=-1), cp.dot(v, self.pmt_pos.T)))
-        base_t = lpmv(cp.zeros(self.ordert)[:, None, None], cp.arange(self.ordert)[:, None, None], cos_theta[None, :, :])
-        base_r = lpmv(cp.zeros(self.orderr)[:, None], cp.arange(self.orderr)[:, None], rho[None, :])
+        base_t = lpmv(cp.zeros(self.ordert, dtype=cp.float16)[:, None, None], cp.arange(self.ordert, dtype=cp.int16)[:, None, None], cos_theta[None, :, :])
+        base_r = lpmv(cp.zeros(self.orderr, dtype=cp.float16)[:, None], cp.arange(self.orderr, dtype=cp.int16)[:, None], rho[None, :])
         return base_t, base_r
 
     def genR(self, vertex, PEt, sum_mode = True):
@@ -107,9 +107,9 @@ class Probe:
         # calculate cos theta
         p = self.pmt_pos[chs]
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v, p), axis=-1), cp.sum(v * p, axis=1)))
-        base_t = lpmv(cp.zeros(self.ordert)[:, None], cp.arange(self.ordert)[:, None], cos_theta[None, :])
-        base_r = lpmv(cp.zeros(self.orderr)[:, None], cp.arange(self.orderr)[:, None], rho[None, :])
-        return base_t, base_r    
+        base_t = lpmv(cp.zeros(self.ordert, dtype=cp.float16)[:, None], cp.arange(self.ordert, dtype=cp.int16)[:, None], cos_theta[None, :])
+        base_r = lpmv(cp.zeros(self.orderr, dtype=cp.float16)[:, None], cp.arange(self.orderr, dtype=cp.int16)[:, None], rho[None, :])
+        return base_t, base_r
 
     def genRch(self, vertex, PEt, chs):
         '''
@@ -138,7 +138,7 @@ def Init(PEt, s0s, pmt_pos):
     '''
     vertex = cp.zeros((s0s.shape[0], 5), dtype=cp.float16)
     s0sum = cp.sum(s0s, axis=1)
-    vertex[:, 3] = s0sum/ npe
+    vertex[:, 3] = s0sum / npe
     vertex[:, :3] = 1.5 * s0s @ pmt_pos / s0sum[:, None]
     index = cp.arange(PEt.shape[2])[None, None, :] < s0s[:, :, None]
     PEt = cp.where(index, PEt, 0)

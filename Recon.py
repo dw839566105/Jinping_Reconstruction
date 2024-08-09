@@ -80,14 +80,14 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
     recon_step = np.zeros((len(waveform), MC_step), dtype=dtype)
     i = 0
     for eids, zs, meta_zs, samplers in waveform:
-        zs = cp.asarray(zs)
-        s0s = cp.asarray(meta_zs["s0"])
-        nu_lcs = cp.asarray(meta_zs["nu_lc"])
+        zs = cp.asarray(zs, dtype=cp.float16)
+        s0s = cp.asarray(meta_zs["s0"], dtype=cp.int32)
+        nu_lcs = cp.asarray(meta_zs["nu_lc"], dtype=cp.float16)
 
         # 设定随机数
         cp.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
-        u_gibbs = cp.log(cp.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)))
-        u_V = cp.random.normal(0, 1, (MC_step, len(eids), V_variables))
+        u_gibbs = cp.log(cp.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)), dtype=cp.float32)
+        u_V = cp.random.normal(0, 1, (MC_step, len(eids), V_variables), dtype=cp.float32)
 
         # 给出 vertex, LogLikelihhood 的初值并记录
         PEt = zs + timecalib[None, :, None]
@@ -98,10 +98,10 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
         for step in range(MC_step):
             # 对 z 采样
             ch_s, z_s, meta_zc = next(samplers)
-            ch_s = cp.asarray(ch_s)
-            z_s = cp.asarray(z_s)
-            s0_s = cp.asarray(meta_zc["s0"])
-            nu_lc_s = cp.asarray(meta_zc["nu_lc"])
+            ch_s = cp.asarray(ch_s, dtype=cp.int16)
+            z_s = cp.asarray(z_s, dtype=cp.float16)
+            s0_s = cp.asarray(meta_zc["s0"], dtype=cp.int16)
+            nu_lc_s = cp.asarray(meta_zc["nu_lc"], dtype=cp.float16)
             ievch = cp.s_[cp.arange(len(zs)), ch_s]
             PEt_o = PEt[ievch]
             s0_o = s0s[ievch]

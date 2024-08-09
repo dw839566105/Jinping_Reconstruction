@@ -48,13 +48,13 @@ parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10000,
 args = parser.parse_args()
 
 # 读入文件
-pmt_pos = cp.loadtxt(args.PMT)
+pmt_pos = cp.loadtxt(args.PMT, dtype=cp.float16)
 print("Finished Reading PMT")
 probe = Detector.LoadProbe(args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
 timefile = pd.read_csv(args.timecalib, sep='\s+', header=None, comment="#")
-darkrate = cp.loadtxt(args.dark) / 1E9 # Hz 转换成 个 / ns
-timecalib = cp.array(- timefile[6].values) # 时间刻度相反数来修正
+darkrate = cp.loadtxt(args.dark, dtype=cp.float16) / 1E9 # Hz 转换成 个 / ns
+timecalib = cp.asarray(- timefile[6].values, dtype=cp.float16) # 时间刻度相反数来修正
 
 # 重建
 data_recon = Recon.Reconstruction(args.filename, args.sparsify, args.num, probe, pmt_pos, darkrate, timecalib, args.MCstep)
