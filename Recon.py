@@ -149,7 +149,7 @@ def Reconstruction(fsmp, sparsify, num, output, probe, pmt_pos, darkrate, timeca
         # 读入波形分析结果
         waveform = FSMPreader(sparsify, fsmp)
         entries, zlength_max = waveform.get_size()
-        dataset = opt.create_dataset("Recon", shape=(entries * MC_step,), dtype=dtype, **opts)
+        dataset = opt.create_dataset("Recon", shape=(entries, MC_step), dtype=dtype, **opts)
         i = 0
         for eids, chs, offsets, zs, s0s, nu_lcs, samplers in tqdm(concat(waveform.rand_iter(MC_step), entries, zlength_max, num)):
             # 预分配储存数组
@@ -233,5 +233,5 @@ def Reconstruction(fsmp, sparsify, num, output, probe, pmt_pos, darkrate, timeca
                 recon_step['acceptr'] = accept_r
                 recon_step['acceptE'] = accept_E
                 recon_step['acceptt'] = accept_t
-                dataset[i: i + len(recon_step)] = recon_step
-                i += len(recon_step)
+                dataset[i: i + len(recon_step), step] = recon_step
+            i += len(recon_step)
