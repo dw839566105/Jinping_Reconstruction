@@ -11,11 +11,9 @@ from DetectorConfig import shell
 psr = argparse.ArgumentParser()
 psr.add_argument("-i", dest="ipt", help="input recon file")
 psr.add_argument("-o", dest='opt', help="output")
-psr.add_argument("-s", dest="step", type=int, help="MC step")
 psr.add_argument("-r", dest="rate", type=float, help="burn rate")
 args = psr.parse_args()
 rate = args.rate
-step = args.step
 
 def read_burn(file):
     '''
@@ -23,6 +21,7 @@ def read_burn(file):
     '''
     with h5py.File(file,"r") as ipt:
         # 结构化数组无法二元运算，转成 dataframe
+        step = ipt['Recon'].shape[1]
         recon = pd.DataFrame(ipt['Recon'][:, int(rate * step):].reshape(-1))
         res = recon.groupby('EventID').mean().reset_index()
         res['x'] = res['x'].apply(lambda x: x * shell)

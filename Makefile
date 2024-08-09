@@ -4,7 +4,7 @@ coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
 TimeCalib:=/JNE/Jinping_1ton_Data/CalibData/TimeCalibData/PMTTimeCalib_Run257toRun262.txt
 PMTCalib:=/JNE/Jinping_1ton_Data/CalibData/GainCalibData/PMTGainCalib_Run0257toRun0271.txt
 PMT:=PMT.txt
-MCstep:=10000
+MCstep:=2000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
 BlockNum:=3
 SRUN:=sudo -u\#35905 srun -g 1 -c 2
@@ -23,7 +23,7 @@ tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) dar
 
 tvE_Burn/%.h5: tvE/%.h5
 	mkdir -p $(dir $@)
-	python3 Burn.py -i $< -o $@ -s $(MCstep) -r 0.6
+	python3 Burn.py -i $< -o $@ -r 0.5
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
