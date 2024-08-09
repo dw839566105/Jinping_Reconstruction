@@ -21,6 +21,10 @@ tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) dar
 	mkdir -p $(dir $@)
 	$(SRUN) python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@
 
+tvE_Burn/%.h5: tvE/%.h5
+	mkdir -p $(dir $@)
+	python3 Burn.py -i $< -o $@ -s $(MCstep) -r 0.6
+
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
 Bi214_0257.txt: $(BiPo0257)
