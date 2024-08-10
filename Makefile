@@ -4,10 +4,10 @@ coeff_time_temp:=/JNE/coeff/Legendre/Gather/Time/2/80/10.h5
 TimeCalib:=/JNE/Jinping_1ton_Data/CalibData/TimeCalibData/PMTTimeCalib_Run257toRun262.txt
 PMTCalib:=/JNE/Jinping_1ton_Data/CalibData/GainCalibData/PMTGainCalib_Run0257toRun0271.txt
 PMT:=PMT.txt
-MCstep:=10000
+MCstep:=2000
 reconfiles:=$(patsubst fsmp/%.pq, tvE/%.h5, $(wildcard fsmp/BiPo/run00000257/*.pq))
-
-SRUN:=sudo -u\#35905 srun -c 1
+BlockNum:=3
+SRUN:=sudo -u\#35905 srun -G 1 -c 2
 
 all: Fig/BiPo.pdf
 
@@ -19,7 +19,11 @@ darknoise.txt: /JNE/calibration/ZLwork/MonitorRun0257_Run0290.root
 # 事例重建
 tvE/%.h5: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
 	mkdir -p $(dir $@)
-	$(SRUN) python3 main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@
+	$(SRUN) ./main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@
+
+tvE_Burn/%.h5: tvE/%.h5
+	mkdir -p $(dir $@)
+	python3 Burn.py -i $< -o $@ -r 0.5
 
 # 生成 run0257 的 BiPo 事例列表和已有重建结果图
 BiPo0257:=/JNE/eternity/Reconstruction/00000257.root
@@ -65,13 +69,21 @@ Fig/sim/pointz.pdf: Fig/sim/pointz.h5
 # time profile
 profile/%.stat: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
 	mkdir -p $(dir $@)
-	python3 -m cProfile -o $@ main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@.h5
+	python3 -m cProfile -o $@ main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@.h5
 
+line:=$(shell grep -n "def genR(self, vertex, PEt, sum_mode = True)" Detector.py | cut -d ":" -f 1)
 lineprofile/%.lprof: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib) Detector.py
 	mkdir -p $(dir $@)
-	sed -i '55 i\    from line_profiler import LineProfiler\n    @profile' $(word 8, $^)
-	kernprof -o $@ -l main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n 50 -m $(MCstep) -o $@.h5
-	sed -i '55,56d' $(word 8, $^)
+	sed -i '$(line) i\    from line_profiler import LineProfiler\n    @profile' $(word 8, $^)
+	kernprof -o $@ -l main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@.h5
+	python -m line_profiler $@ > $@.log
+	sed -i '$(line)d' $(word 8, $^)
+	sed -i '$(line)d' $(word 8, $^)
+
+rocprofile/%: fsmp/%.pq sparsify/%.h5 $(coeff_PE_temp) $(coeff_time_temp) $(PMT) darknoise.txt $(TimeCalib)
+	mkdir -p $@
+	rocprof -d rocprofile/$* --hip-trace main.py -f $< --sparsify $(word 2, $^) --pe $(word 3, $^) --time $(word 4, $^) --PMT $(word 5, $^) --dark $(word 6, $^) --timecalib $(word 7, $^) -n $(BlockNum) -m $(MCstep) -o $@.h5
+	mv results.* $@/
 
 profile/%.svg: profile/%.stat
 	gprof2dot -f pstats $^ | dot -Tsvg -o $@

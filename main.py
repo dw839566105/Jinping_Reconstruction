@@ -6,7 +6,9 @@ import argparse
 from argparse import RawTextHelpFormatter
 import Recon
 import Detector
+import cupy as cp
 import numpy as np
+import h5py
 import pandas as pd
     
 parser = argparse.ArgumentParser(description='Process Reconstruction construction', formatter_class=RawTextHelpFormatter)
@@ -38,7 +40,7 @@ parser.add_argument('--timecalib', dest='timecalib', type=str,
                     help='time calib file')
 
 parser.add_argument('-n', '--num', dest='num', type=int, default=10,
-                    help='the batch size for multi-events reconstruction')
+                    help='the number of blocks for multi-events reconstruction')
 
 parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10000,
                     help='mcmc step per PEt')
@@ -46,15 +48,18 @@ parser.add_argument('-m', '--MCstep', dest='MCstep', type=int, default=10000,
 args = parser.parse_args()
 
 # 读入文件
-pmt_pos = np.loadtxt(args.PMT)
+pmt_pos = cp.loadtxt(args.PMT, dtype=cp.float16)
 print("Finished Reading PMT")
 probe = Detector.LoadProbe(args.pe, args.time, pmt_pos)
 print("Finished Loading Probe")
 timefile = pd.read_csv(args.timecalib, sep='\s+', header=None, comment="#")
-darkrate = np.loadtxt(args.dark) / 1E9 # Hz 转换成 个 / ns
-timecalib = - timefile[6].values # 时间刻度相反数来修正
+darkrate = cp.loadtxt(args.dark, dtype=cp.float16) / 1E9 # Hz 转换成 个 / ns
+timecalib = cp.asarray(- timefile[6].values, dtype=cp.float16) # 时间刻度相反数来修正
 
 # 重建
-Recon.Reconstruction(args.filename, args.sparsify, args.num, args.output, probe, pmt_pos, darkrate, timecalib, args.MCstep)
+data_recon = Recon.Reconstruction(args.filename, args.sparsify, args.num, probe, pmt_pos, darkrate, timecalib, args.MCstep)
 
-
+# 创建输出文件
+opts = {"compression": "gzip", "shuffle": True}
+with h5py.File(args.output, "w") as opt:
+    dataset = opt.create_dataset("Recon", data = data_recon, **opts)
