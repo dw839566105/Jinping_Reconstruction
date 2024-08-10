@@ -9,8 +9,6 @@ import Detector
 from config import *
 from DetectorConfig import chnums, wavel
 from fsmp_reader import Reader
-import statsmodels.api as sm
-# sm.families.Poisson 只允许 log 的 link，其他 link 都会被视为 unsafe 弹出 warning
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -40,11 +38,6 @@ def LHch(vertex, chs, PEt, s0s, probe, darkrate):
     index = cp.arange(R.shape[1])[None, :] < cp.asarray(s0s[:, None])
     L1 = cp.sum(cp.log(R + darkrate[chs][:, None]) * index, axis=1)
     return L1 + Rsum
-
-def glm(data):
-    length = len(data) // 3
-    result = sm.GLM(data[length: 2 * length], data[:length], family=sm.families.Poisson(link=sm.families.links.identity()), offset=data[2 * length:]).fit().params[0]
-    return result
 
 def histogram(data, weights, bins):
     result = np.zeros((data.shape[0], data.shape[1], bins.shape[0] - 1))
