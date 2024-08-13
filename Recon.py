@@ -9,8 +9,6 @@ import Detector
 from config import *
 from DetectorConfig import chnums, wavel
 from fsmp_reader import Reader
-import warnings
-warnings.filterwarnings("ignore")
 
 # 重建数据储存类型
 dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'),
@@ -156,6 +154,7 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
             recon_step[block_size]['acceptr'] = accept_r.get()
             recon_step[block_size]['acceptE'] = accept_E.get()
             recon_step[block_size]['acceptt'] = accept_t.get()
+        i += len(eids)
     return recon_step
 
 
