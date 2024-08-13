@@ -10,9 +10,6 @@ from config import *
 from DetectorConfig import chnums, wavel
 from fsmp_reader import Reader
 import statsmodels.api as sm
-# sm.families.Poisson 只允许 log 的 link，其他 link 都会被视为 unsafe 弹出 warning
-import warnings
-warnings.filterwarnings("ignore")
 
 # 重建数据储存类型
 dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'),
