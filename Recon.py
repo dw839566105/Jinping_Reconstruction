@@ -160,7 +160,7 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
             recon_step[block_size]['acceptr'] = accept_r.get()
             recon_step[block_size]['acceptE'] = accept_E.get()
             recon_step[block_size]['acceptt'] = accept_t.get()
-            i += len(eids)
+        i += len(eids)
     return recon_step
 
 
