@@ -65,11 +65,12 @@ class Probe:
         rho = cp.linalg.norm(v, axis=1)
         rho = cp.clip(rho, 0, 1)
         # calculate cos theta
+        # the computation will be done by casting to single precision in fact
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v[:, None, :], self.pmt_pos), axis=-1), cp.dot(v, self.pmt_pos.T)))
         # lpmv 会返回 float32
         base_t = lpmv(cp.zeros(self.ordert, dtype=cp.float16)[:, None, None], cp.arange(self.ordert, dtype=cp.int16)[:, None, None], cos_theta[None, :, :])
         base_r = lpmv(cp.zeros(self.orderr, dtype=cp.float16)[:, None], cp.arange(self.orderr, dtype=cp.int16)[:, None], rho[None, :])
-        return base_t, base_r
+        return base_t.astype(cp.float16), base_r.astype(cp.float16)
 
     def genR(self, vertex, PEt, sum_mode = True):
         '''
@@ -83,9 +84,9 @@ class Probe:
         '''
         base_t, base_r = self.genBase(vertex)
         # 计算空间项
-        NPE = cp.exp(cp.sum(cp.matmul(base_t[:self.coeff_pe.shape[0]].T, self.coeff_pe, dtype=cp.float16) * base_r[:self.coeff_pe.shape[1]].T[None, :, :], axis=2, dtype=cp.float16))
+        NPE = cp.exp(cp.sum(cp.matmul(base_t[:self.coeff_pe.shape[0]].T, self.coeff_pe) * base_r[:self.coeff_pe.shape[1]].T[None, :, :], axis=2))
         # 计算 R
-        Ti = cp.sum(cp.matmul(base_t[:self.coeff_time.shape[0]].T, self.coeff_time, dtype=cp.float16) * base_r[:self.coeff_time.shape[1]].T[None, :, :], axis=2, dtype=cp.float16)
+        Ti = cp.sum(cp.matmul(base_t[:self.coeff_time.shape[0]].T, self.coeff_time) * base_r[:self.coeff_time.shape[1]].T[None, :, :], axis=2)
         t = PEt - Ti.T[:,:, None] - vertex[:, -1][:, None, None]
         R = tau * (1 - tau) / ts * cp.exp(- cp.where(t < 0, t * (tau - 1), t * tau) / ts) * NPE.T[:, :, None] / E0
         if not sum_mode:
@@ -110,7 +111,7 @@ class Probe:
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v, p), axis=-1), cp.sum(v * p, axis=1)))
         base_t = lpmv(cp.zeros(self.ordert, dtype=cp.float16)[:, None], cp.arange(self.ordert, dtype=cp.int16)[:, None], cos_theta[None, :])
         base_r = lpmv(cp.zeros(self.orderr, dtype=cp.float16)[:, None], cp.arange(self.orderr, dtype=cp.int16)[:, None], rho[None, :])
-        return base_t, base_r
+        return base_t.astype(cp.float16), base_r.astype(cp.float16)
 
     def genRch(self, vertex, PEt, chs):
         '''
@@ -121,9 +122,9 @@ class Probe:
         base_t, base_r = self.genBasech(vertex, chs)
         # 计算空间项
         # @ 和 dot 无法指定数据类型
-        NPE = cp.exp(cp.sum((base_t[:self.coeff_pe.shape[0]].T @ self.coeff_pe) * base_r[:self.coeff_pe.shape[1]].T, axis=1, dtype=cp.float16))
+        NPE = cp.exp(cp.sum((base_t[:self.coeff_pe.shape[0]].T @ self.coeff_pe) * base_r[:self.coeff_pe.shape[1]].T, axis=1))
         # 计算 R
-        Ti = cp.sum((base_t[:self.coeff_time.shape[0]].T @ self.coeff_time) * base_r[:self.coeff_time.shape[1]].T, axis=1, dtype=cp.float16)
+        Ti = cp.sum((base_t[:self.coeff_time.shape[0]].T @ self.coeff_time) * base_r[:self.coeff_time.shape[1]].T, axis=1)
         t = PEt - Ti.T[:, None] - vertex[:, -1][:, None]
         R = tau * (1 - tau) / ts * cp.exp(- cp.where(t < 0, t * (tau - 1), t * tau) / ts) * NPE.T[:, None] * vertex[:, 3][:, None] / E0
         # 分类计算 R 的积分
