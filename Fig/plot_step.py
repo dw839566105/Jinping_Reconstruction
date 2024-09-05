@@ -23,7 +23,7 @@ psr.add_argument("ipt", type=str, help="input file")
 args = psr.parse_args()
 
 with h5py.File(args.ipt, "r") as f:
-    recon = pd.DataFrame(f['Recon'][:])
+    recon = f['Recon'][:args.num, :]
 
 if args.mode == "sim":
     with uproot.open(args.truth) as ipt:
@@ -38,8 +38,8 @@ if args.mode == "sim":
         truth = pd.DataFrame({"EventID":TriggerNo, "x":x, "y":y, "z":z, "E":2*np.ones(len(x)), "r":r, "xy":xy})
 
 with PdfPages(args.opt) as pp:
-    for eid in recon['EventID'].unique()[:args.num]:
-        data = recon[recon['EventID'] == eid]
+    for data in recon:
+        eid = data[0]['EventID']
         if args.mode == "sim":
             truth_data = truth[truth['EventID'] == eid]
         acceptz = data['acceptz'].sum() / data.shape[0]
@@ -51,18 +51,18 @@ with PdfPages(args.opt) as pp:
         print(f"acceptr-{acceptr}")
         print(f"acceptE-{acceptE}")
         print(f"acceptt-{acceptt}")
-        data_r = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2 +  data['z'].values ** 2) * shell
-        data_xy = np.sqrt(data['x'].values ** 2 + data['y'].values ** 2) * shell
+        data_r = np.sqrt(data['x'] ** 2 + data['y'] ** 2 +  data['z'] ** 2) * shell
+        data_xy = np.sqrt(data['x'] ** 2 + data['y'] ** 2) * shell
         
         if args.switch == "ON":
             # loglikelihood distribution
-            plot_hist(pp, data['Likelihood'].values, "LogLikelihood", "steps", "value")
+            plot_hist(pp, data['Likelihood'], "LogLikelihood", "steps", "value")
 
             # 插值二维图
             fig, ax = plt.subplots(figsize=(25, 25))
             x = data_xy
-            y = data['z'].values * shell
-            z = data['Likelihood'].values
+            y = data['z'] * shell
+            z = data['Likelihood']
             xi = np.linspace(0, shell, 100)
             yi = np.linspace(-shell, shell, 100)
             triang = tri.Triangulation(x, y)
@@ -82,8 +82,8 @@ with PdfPages(args.opt) as pp:
 
             fig, ax = plt.subplots(figsize=(25, 25))
             x = data_xy
-            y = data['z'].values * shell
-            z = data['Likelihood'].values
+            y = data['z'] * shell
+            z = data['Likelihood']
             xi = np.linspace(0, shell, 100)
             yi = np.linspace(-shell, shell, 100)
             triang = tri.Triangulation(x, y)
@@ -101,51 +101,51 @@ with PdfPages(args.opt) as pp:
             plt.close(fig)
         
         # z-xy 分布
-        plot_zxy(pp, data_xy ** 2, data['z'].values, "recon")
+        plot_zxy(pp, data_xy ** 2, data['z'], "recon")
 
         # Evolution
         fig, axs = plt.subplots(7, 1, figsize=(25, 35))
-        axs[0].plot(data['E'].values)
+        axs[0].plot(data['E'])
         if args.mode == "sim":
-            axs[0].axhline(y=truth_data['E'].values, color='g', linestyle='--')
+            axs[0].axhline(y=truth_data['E'], color='g', linestyle='--')
         axs[0].set_title(f'Energy Evolution - Event{eid}')
         axs[0].set_ylabel('Energy / MeV')
         axs[0].set_xlabel('step')
 
-        axs[1].plot(data['x'].values * shell)
+        axs[1].plot(data['x'] * shell)
         if args.mode == "sim":
-            axs[1].axhline(y=truth_data['x'].values, color='g', linestyle='--')
+            axs[1].axhline(y=truth_data['x'], color='g', linestyle='--')
         axs[1].set_title(f'x Evolution - Event{eid}')
         axs[1].set_ylabel('x / m')
         axs[1].set_xlabel('step')
 
-        axs[2].plot(data['y'].values * shell)
+        axs[2].plot(data['y'] * shell)
         if args.mode == "sim":
-            axs[2].axhline(y=truth_data['y'].values, color='g', linestyle='--')
+            axs[2].axhline(y=truth_data['y'], color='g', linestyle='--')
         axs[2].set_title(f'y Evolution - Event{eid}')
         axs[2].set_ylabel('y / m')
         axs[2].set_xlabel('step')
 
         axs[3].plot(data_r)
         if args.mode == "sim":
-            axs[3].axhline(y=np.sqrt(truth_data['x'].values ** 2 + truth_data['y'].values ** 2 +  + truth_data['z'].values ** 2), color='g', linestyle='--')
+            axs[3].axhline(y=np.sqrt(truth_data['x'] ** 2 + truth_data['y'] ** 2 +  + truth_data['z'] ** 2), color='g', linestyle='--')
         axs[3].set_title(f'r Evolution - Event{eid}')
         axs[3].set_ylabel('r / m')
         axs[3].set_xlabel('step')
 
-        axs[4].plot(data['z'].values * shell)
+        axs[4].plot(data['z'] * shell)
         if args.mode == "sim":
-            axs[4].axhline(y=truth_data['z'].values, color='g', linestyle='--')
+            axs[4].axhline(y=truth_data['z'], color='g', linestyle='--')
         axs[4].set_title(f'z Evolution - Event{eid}')
         axs[4].set_ylabel('z / m')
         axs[4].set_xlabel('step')
 
-        axs[5].plot(data['t'].values)
+        axs[5].plot(data['t'])
         axs[5].set_title(f't Evolution - Event{eid}')
         axs[5].set_ylabel('t / ns')
         axs[5].set_xlabel('step')
 
-        axs[6].plot(data['Likelihood'].values)
+        axs[6].plot(data['Likelihood'])
         axs[6].set_title(f'LogLikelihood Evolution - Event{eid}')
         axs[6].set_ylabel('LogLikelihood')
         axs[6].set_xlabel('step')

@@ -50,8 +50,8 @@ class Probe:
         orderr:
             空间项阶数
         '''
-        self.coeff_pe = cp.asarray(coeff_pe)
-        self.coeff_time = cp.asarray(coeff_time)
+        self.coeff_pe = cp.asarray(coeff_pe, dtype=cp.float16)
+        self.coeff_time = cp.asarray(coeff_time, dtype=cp.float16)
         self.pmt_pos = pmt_pos
         self.ordert = max(self.coeff_pe.shape[0], self.coeff_time.shape[0])
         self.orderr = max(self.coeff_pe.shape[1], self.coeff_time.shape[1])
@@ -65,10 +65,12 @@ class Probe:
         rho = cp.linalg.norm(v, axis=1)
         rho = cp.clip(rho, 0, 1)
         # calculate cos theta
+        # the computation will be done by casting to single precision in fact
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v[:, None, :], self.pmt_pos), axis=-1), cp.dot(v, self.pmt_pos.T)))
+        # lpmv 会返回 float32
         base_t = lpmv(cp.zeros(self.ordert, dtype=cp.float16)[:, None, None], cp.arange(self.ordert, dtype=cp.int16)[:, None, None], cos_theta[None, :, :])
         base_r = lpmv(cp.zeros(self.orderr, dtype=cp.float16)[:, None], cp.arange(self.orderr, dtype=cp.int16)[:, None], rho[None, :])
-        return base_t, base_r
+        return base_t.astype(cp.float16), base_r.astype(cp.float16)
 
     def genR(self, vertex, PEt, sum_mode = True):
         '''
@@ -109,7 +111,7 @@ class Probe:
         cos_theta = cp.cos(cp.arctan2(cp.linalg.norm(cp.cross(v, p), axis=-1), cp.sum(v * p, axis=1)))
         base_t = lpmv(cp.zeros(self.ordert, dtype=cp.float16)[:, None], cp.arange(self.ordert, dtype=cp.int16)[:, None], cos_theta[None, :])
         base_r = lpmv(cp.zeros(self.orderr, dtype=cp.float16)[:, None], cp.arange(self.orderr, dtype=cp.int16)[:, None], rho[None, :])
-        return base_t, base_r
+        return base_t.astype(cp.float16), base_r.astype(cp.float16)
 
     def genRch(self, vertex, PEt, chs):
         '''
@@ -119,6 +121,7 @@ class Probe:
         '''
         base_t, base_r = self.genBasech(vertex, chs)
         # 计算空间项
+        # @ 和 dot 无法指定数据类型
         NPE = cp.exp(cp.sum((base_t[:self.coeff_pe.shape[0]].T @ self.coeff_pe) * base_r[:self.coeff_pe.shape[1]].T, axis=1))
         # 计算 R
         Ti = cp.sum((base_t[:self.coeff_time.shape[0]].T @ self.coeff_time) * base_r[:self.coeff_time.shape[1]].T, axis=1)

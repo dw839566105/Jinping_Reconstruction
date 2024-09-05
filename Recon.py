@@ -11,9 +11,9 @@ from DetectorConfig import chnums, wavel
 from fsmp_reader import Reader
 
 # 重建数据储存类型
-dtype = np.dtype([('EventID', '<i8'), ('step', '<i4'), ('x', '<f2'), ('y', '<f2'),
+dtype = np.dtype([('EventID', '<i4'), ('step', '<i2'), ('x', '<f2'), ('y', '<f2'),
                   ('z', '<f2'), ('E', '<f2'), ('t', '<f2'), ('NPE', '<i4'),
-                  ('Likelihood', '<f4'), ('acceptz', np.bool_), ('acceptr', np.bool_),
+                  ('Likelihood', '<f2'), ('acceptz', np.bool_), ('acceptr', np.bool_),
                   ('acceptE', np.bool_), ('acceptt', np.bool_)])
 
 def LH(vertex, PEt, s0s, probe, darkrate):
@@ -24,7 +24,7 @@ def LH(vertex, PEt, s0s, probe, darkrate):
     '''
     R, Rsum = probe.genR(vertex, PEt)
     index = cp.arange(R.shape[2])[None, None, :] < s0s[:, :, None]
-    L1 = cp.sum(cp.log(R + darkrate[None, :, None]) * index, axis=(1,2))
+    L1 = cp.sum(cp.log(R + darkrate[None, :, None], dtype=cp.float16) * index, axis=(1,2))
     L2 = - cp.sum(Rsum, axis=1) # 省略了暗噪声积分的常数项
     return L1 + L2
 
@@ -34,7 +34,7 @@ def LHch(vertex, chs, PEt, s0s, probe, darkrate):
     '''
     R, Rsum = probe.genRch(cp.asarray(vertex), cp.asarray(PEt), chs)
     index = cp.arange(R.shape[1])[None, :] < cp.asarray(s0s[:, None])
-    L1 = cp.sum(cp.log(R + darkrate[chs][:, None]) * index, axis=1)
+    L1 = cp.sum(cp.log(R + darkrate[chs][:, None], dtype=cp.float16) * index, axis=1)
     return L1 + Rsum
 
 def histogram(data, weights, bins):
@@ -72,12 +72,12 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
     i = 0
     for eids, zs, meta_zs, samplers in waveform:
         zs = cp.asarray(zs, dtype=cp.float16)
-        s0s = cp.asarray(meta_zs["s0"], dtype=cp.int32)
+        s0s = cp.asarray(meta_zs["s0"], dtype=cp.int16)
         nu_lcs = cp.asarray(meta_zs["nu_lc"], dtype=cp.float16)
 
         # 设定随机数
         cp.random.seed(eids[0] % 1000000) # 取第一个事例编号设定随机数种子
-        u_gibbs = cp.log(cp.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables)), dtype=cp.float32)
+        u_gibbs = cp.log(cp.random.uniform(0, 1, (MC_step, len(eids), gibbs_variables), dtype=cp.float32), dtype=cp.float16)
         u_V = cp.random.normal(0, 1, (MC_step, len(eids), V_variables), dtype=cp.float32)
 
         # 给出 vertex, LogLikelihhood 的初值并记录
@@ -148,7 +148,7 @@ def Reconstruction(fsmp, sparsify, num, probe, pmt_pos, darkrate, timecalib, MC_
             recon_step[block_size]['z'] = vertex0[:, 2].get()
             recon_step[block_size]['E'] = vertex0[:, 3].get()
             recon_step[block_size]['t'] = vertex0[:, 4].get()
-            recon_step[block_size]['NPE'] = cp.sum(s0s, axis=1).get()
+            recon_step[block_size]['NPE'] = cp.sum(s0s, axis=1, dtype=cp.int32).get()
             recon_step[block_size]['Likelihood'] = Likelihood_vertex0.get()
             recon_step[block_size]['acceptz'] = accept_z.get()
             recon_step[block_size]['acceptr'] = accept_r.get()
